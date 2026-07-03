@@ -2,15 +2,14 @@ using UnityEngine;
 
 namespace Ciga.Demo
 {
-    public sealed class LoopingBackground2D : MonoBehaviour
+    public sealed class WorldAutoScroller2D : MonoBehaviour
     {
-        [SerializeField] private float scrollSpeed = 1f;
-        [SerializeField] private float tileWidth = 24f;
+        [Tooltip("How fast this object moves left in world units per second.")]
+        [SerializeField] private float scrollSpeed = 3f;
         [Tooltip("When set, scrolling is driven by this target's actual positive X movement instead of raw time.")]
         [SerializeField] private Transform scrollDriver;
         [SerializeField] private float referenceDriverSpeed = 4f;
 
-        private Transform[] tiles;
         private float lastDriverX;
         private bool hasDriverPosition;
 
@@ -21,11 +20,6 @@ namespace Ciga.Demo
             ResetDriverPosition();
         }
 
-        private void Awake()
-        {
-            CacheTiles();
-        }
-
         private void OnEnable()
         {
             ResetDriverPosition();
@@ -33,46 +27,17 @@ namespace Ciga.Demo
 
         private void Update()
         {
-            if (tiles == null || tiles.Length == 0 || tileWidth <= 0f)
-            {
-                return;
-            }
-
             float movement = GetScrollMovement();
-            if (movement <= 0f)
+            if (movement > 0f)
             {
-                return;
-            }
-
-            float recycleX = -tileWidth;
-            float rightShift = tileWidth * tiles.Length;
-
-            for (int i = 0; i < tiles.Length; i++)
-            {
-                Transform tile = tiles[i];
-                tile.localPosition += Vector3.left * movement;
-
-                if (tile.localPosition.x <= recycleX)
-                {
-                    tile.localPosition += Vector3.right * rightShift;
-                }
+                transform.position += Vector3.left * movement;
             }
         }
 
         private void OnValidate()
         {
-            tileWidth = Mathf.Max(0.1f, tileWidth);
             scrollSpeed = Mathf.Max(0f, scrollSpeed);
             referenceDriverSpeed = Mathf.Max(0.01f, referenceDriverSpeed);
-        }
-
-        private void CacheTiles()
-        {
-            tiles = new Transform[transform.childCount];
-            for (int i = 0; i < transform.childCount; i++)
-            {
-                tiles[i] = transform.GetChild(i);
-            }
         }
 
         private float GetScrollMovement()

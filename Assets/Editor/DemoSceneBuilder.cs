@@ -10,10 +10,15 @@ public static class DemoSceneBuilder
 {
     private const string ScenePath = "Assets/Scenes/demo.unity";
     private const string NoFrictionMaterialPath = "Assets/Demo/NoFriction2D.physicsMaterial2D";
+    private const string GrappleRopeTexturePath = "Assets/Demo/GrappleRopeTexture.asset";
+    private const string GrappleRopeMaterialPath = "Assets/Demo/GrappleRopeMaterial.mat";
     private const string HeroKnightSpritePath = "Assets/Hero Knight - Pixel Art/Sprites/HeroKnight.png";
     private const string HeroKnightControllerPath = "Assets/Hero Knight - Pixel Art/Animations/HeroKnight_AnimController.controller";
     private const int GroundLayer = 0;
     private const int PlayerLayer = 2;
+    private const float DefaultPlayerAutoRunSpeed = 4f;
+    private const float DefaultWrapLeftX = -9.5f;
+    private const float DefaultWrapRightX = 21f;
     private const string AutoBuildSessionKey = "Ciga.DemoSceneBuilder.AutoBuildAttempted";
 
     [InitializeOnLoadMethod]
@@ -56,17 +61,19 @@ public static class DemoSceneBuilder
         Material spriteMaterial = new Material(Shader.Find("Sprites/Default"));
         Sprite whiteSprite = CreateSprite("Assets/Demo/WhitePixelTexture.asset");
         PhysicsMaterial2D noFrictionMaterial = CreateNoFrictionMaterial();
+        Material grappleRopeMaterial = CreateGrappleRopeMaterial();
 
         CreateBackground(whiteSprite, world.transform);
-        CreatePlatform("Ground", new Vector2(0f, -2.4f), new Vector2(20f, 1f), new Color(0.2f, 0.5f, 0.25f), whiteSprite, noFrictionMaterial, platforms.transform);
+        CreatePlatform("Ground", new Vector2(4f, -2.4f), new Vector2(34f, 1f), new Color(0.2f, 0.5f, 0.25f), whiteSprite, noFrictionMaterial, platforms.transform);
         CreatePlatform("Step_01", new Vector2(5.2f, -0.8f), new Vector2(3f, 0.45f), new Color(0.32f, 0.62f, 0.32f), whiteSprite, noFrictionMaterial, platforms.transform);
         CreatePlatform("Step_02", new Vector2(9.2f, 0.5f), new Vector2(3.2f, 0.45f), new Color(0.32f, 0.62f, 0.32f), whiteSprite, noFrictionMaterial, platforms.transform);
         CreatePlatform("Step_03", new Vector2(14f, -0.2f), new Vector2(4f, 0.45f), new Color(0.32f, 0.62f, 0.32f), whiteSprite, noFrictionMaterial, platforms.transform);
+        CreatePlatform("Tall Wall", new Vector2(17.4f, 0.7f), new Vector2(0.8f, 5.2f), new Color(0.42f, 0.45f, 0.48f), whiteSprite, noFrictionMaterial, platforms.transform);
         CreateTrap("Trap_01", new Vector2(-1.2f, -1.85f), new Vector2(0.9f, 0.55f), whiteSprite, traps.transform);
         CreateTrap("Trap_02", new Vector2(7.2f, -2f), new Vector2(1.2f, 0.45f), whiteSprite, traps.transform);
         CreateTrap("Trap_03", new Vector2(12.1f, -1.86f), new Vector2(1.4f, 0.55f), whiteSprite, traps.transform);
 
-        GameObject player = CreatePlayer(whiteSprite, noFrictionMaterial);
+        GameObject player = CreatePlayer(whiteSprite, noFrictionMaterial, grappleRopeMaterial);
         GameObject cameraObject = CreateCamera(player.transform);
 
         CreateSun(whiteSprite, world.transform);
@@ -76,7 +83,7 @@ public static class DemoSceneBuilder
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
 
-        Debug.Log($"Demo scene created at {ScenePath}. Open it and press Play. Move with A/D or Left/Right, jump with Space.");
+        Debug.Log($"Demo scene created at {ScenePath}. Open it and press Play. Auto run is enabled; jump with Space.");
 
         Object.DestroyImmediate(spriteMaterial);
         _ = cameraObject;
@@ -180,35 +187,72 @@ public static class DemoSceneBuilder
         return material;
     }
 
+    private static Material CreateGrappleRopeMaterial()
+    {
+        Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(GrappleRopeTexturePath);
+        if (texture == null)
+        {
+            texture = new Texture2D(16, 4, TextureFormat.RGBA32, false);
+            texture.name = "GrappleRopeTexture";
+            texture.wrapMode = TextureWrapMode.Repeat;
+            texture.filterMode = FilterMode.Point;
+
+            Color dark = new Color(0.08f, 0.08f, 0.08f, 1f);
+            Color light = new Color(0.72f, 0.72f, 0.68f, 1f);
+            for (int y = 0; y < texture.height; y++)
+            {
+                for (int x = 0; x < texture.width; x++)
+                {
+                    bool stripe = ((x / 4) + y) % 2 == 0;
+                    texture.SetPixel(x, y, stripe ? dark : light);
+                }
+            }
+
+            texture.Apply();
+            AssetDatabase.CreateAsset(texture, GrappleRopeTexturePath);
+        }
+        else
+        {
+            texture.wrapMode = TextureWrapMode.Repeat;
+            texture.filterMode = FilterMode.Point;
+            EditorUtility.SetDirty(texture);
+        }
+
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(GrappleRopeMaterialPath);
+        if (material == null)
+        {
+            material = new Material(Shader.Find("Sprites/Default"));
+            material.name = "GrappleRopeMaterial";
+            AssetDatabase.CreateAsset(material, GrappleRopeMaterialPath);
+        }
+
+        material.shader = Shader.Find("Sprites/Default");
+        material.mainTexture = texture;
+        material.color = Color.white;
+        EditorUtility.SetDirty(material);
+        AssetDatabase.SaveAssets();
+        return material;
+    }
+
     private static void CreateBackground(Sprite sprite, Transform parent)
     {
         GameObject background = new GameObject("Scrolling Background");
         background.transform.SetParent(parent);
 
-        CreateBackgroundLayer("Sky", sprite, background.transform, new Vector2(0f, 1.5f), new Vector2(24f, 12f), new Color(0.42f, 0.74f, 0.95f), -20, 0.35f);
-        CreateBackgroundLayer("Far Hills", sprite, background.transform, new Vector2(0f, -1.6f), new Vector2(24f, 2.1f), new Color(0.35f, 0.58f, 0.45f), -12, 0.8f);
-        CreateBackgroundLayer("Near Hills", sprite, background.transform, new Vector2(0f, -1.95f), new Vector2(24f, 1.4f), new Color(0.25f, 0.48f, 0.35f), -10, 1.3f);
+        CreateBackgroundLayer("Sky", sprite, background.transform, new Vector2(4f, 1.5f), new Vector2(34f, 12f), new Color(0.42f, 0.74f, 0.95f), -20);
+        CreateBackgroundLayer("Far Hills", sprite, background.transform, new Vector2(4f, -1.6f), new Vector2(34f, 2.1f), new Color(0.35f, 0.58f, 0.45f), -12);
+        CreateBackgroundLayer("Near Hills", sprite, background.transform, new Vector2(4f, -1.95f), new Vector2(34f, 1.4f), new Color(0.25f, 0.48f, 0.35f), -10);
     }
 
-    private static void CreateBackgroundLayer(string name, Sprite sprite, Transform parent, Vector2 position, Vector2 tileScale, Color color, int sortingOrder, float scrollSpeed)
+    private static void CreateBackgroundLayer(string name, Sprite sprite, Transform parent, Vector2 position, Vector2 tileScale, Color color, int sortingOrder)
     {
         GameObject layer = new GameObject(name);
         layer.transform.SetParent(parent);
         layer.transform.position = new Vector3(position.x, position.y, 0f);
 
-        for (int i = 0; i < 3; i++)
-        {
-            GameObject tile = CreateSpriteObject($"{name} Tile {i + 1}", sprite, Vector2.zero, tileScale, color);
-            tile.transform.SetParent(layer.transform, false);
-            tile.transform.localPosition = new Vector3((i - 1) * tileScale.x, 0f, 0f);
-            tile.GetComponent<SpriteRenderer>().sortingOrder = sortingOrder;
-        }
-
-        LoopingBackground2D looper = layer.AddComponent<LoopingBackground2D>();
-        SerializedObject serializedLooper = new SerializedObject(looper);
-        serializedLooper.FindProperty("scrollSpeed").floatValue = scrollSpeed;
-        serializedLooper.FindProperty("tileWidth").floatValue = tileScale.x;
-        serializedLooper.ApplyModifiedPropertiesWithoutUndo();
+        GameObject tile = CreateSpriteObject($"{name} Tile", sprite, Vector2.zero, tileScale, color);
+        tile.transform.SetParent(layer.transform, false);
+        tile.GetComponent<SpriteRenderer>().sortingOrder = sortingOrder;
     }
 
     private static GameObject CreatePlatform(string name, Vector2 position, Vector2 scale, Color color, Sprite sprite, PhysicsMaterial2D material, Transform parent)
@@ -238,7 +282,7 @@ public static class DemoSceneBuilder
         return trap;
     }
 
-    private static GameObject CreatePlayer(Sprite sprite, PhysicsMaterial2D material)
+    private static GameObject CreatePlayer(Sprite sprite, PhysicsMaterial2D material, Material grappleRopeMaterial)
     {
         GameObject player = new GameObject("Player");
         player.layer = PlayerLayer;
@@ -261,6 +305,20 @@ public static class DemoSceneBuilder
         body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         body.interpolation = RigidbodyInterpolation2D.Interpolate;
 
+        LineRenderer grappleLine = player.AddComponent<LineRenderer>();
+        grappleLine.positionCount = 2;
+        grappleLine.enabled = false;
+        grappleLine.useWorldSpace = true;
+        grappleLine.startWidth = 0.06f;
+        grappleLine.endWidth = 0.035f;
+        grappleLine.numCapVertices = 2;
+        grappleLine.alignment = LineAlignment.View;
+        grappleLine.textureMode = LineTextureMode.Tile;
+        grappleLine.sortingOrder = 20;
+        grappleLine.material = grappleRopeMaterial;
+        grappleLine.startColor = Color.white;
+        grappleLine.endColor = Color.white;
+
         BoxCollider2D collider = player.AddComponent<BoxCollider2D>();
         collider.offset = new Vector2(0f, 0.662f);
         collider.size = new Vector2(0.73f, 1.2f);
@@ -268,10 +326,20 @@ public static class DemoSceneBuilder
 
         PlayerController2D controller = player.AddComponent<PlayerController2D>();
         SerializedObject serializedController = new SerializedObject(controller);
-        serializedController.FindProperty("moveSpeed").floatValue = 7f;
+        serializedController.FindProperty("autoRunSpeed").floatValue = DefaultPlayerAutoRunSpeed;
         serializedController.FindProperty("jumpForce").floatValue = 14f;
+        serializedController.FindProperty("wrapAtMapEdges").boolValue = true;
+        serializedController.FindProperty("wrapLeftX").floatValue = DefaultWrapLeftX;
+        serializedController.FindProperty("wrapRightX").floatValue = DefaultWrapRightX;
+        serializedController.FindProperty("wallSlideFallSpeedMultiplier").floatValue = 0.35f;
+        serializedController.FindProperty("grappleAimRadius").floatValue = 5f;
+        serializedController.FindProperty("grappleAimMoveSpeedMultiplier").floatValue = 0.15f;
         serializedController.FindProperty("groundNormalThreshold").floatValue = 0.65f;
+        serializedController.FindProperty("grapplePullSpeed").floatValue = 14f;
+        serializedController.FindProperty("grappleStopDistance").floatValue = 0.65f;
+        serializedController.FindProperty("grappleClimbAnimationDuration").floatValue = 0.45f;
         serializedController.FindProperty("groundMask").FindPropertyRelative("m_Bits").intValue = 1 << GroundLayer;
+        serializedController.FindProperty("grappleMask").FindPropertyRelative("m_Bits").intValue = 1 << GroundLayer;
         serializedController.ApplyModifiedPropertiesWithoutUndo();
 
         return player;
@@ -324,7 +392,7 @@ public static class DemoSceneBuilder
         instructions.transform.position = new Vector3(-6.8f, 2.35f, 0f);
 
         TextMesh text = instructions.AddComponent<TextMesh>();
-        text.text = "A/D or Left/Right: Move    Space: Jump    Left Click: Attack    E: Death";
+        text.text = "Auto Run    Space: Jump    J: Attack    Hold Left Click: Aim Grapple    E: Death";
         text.fontSize = 42;
         text.characterSize = 0.08f;
         text.anchor = TextAnchor.MiddleLeft;
@@ -342,4 +410,5 @@ public static class DemoSceneBuilder
         renderer.color = color;
         return gameObject;
     }
+
 }
