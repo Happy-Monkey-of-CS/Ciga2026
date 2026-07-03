@@ -7,6 +7,9 @@ namespace Ciga.Demo
     [RequireComponent(typeof(Collider2D))]
     public sealed class PlayerController2D : MonoBehaviour
     {
+        private const string GroundTag = "DemoGround";
+        private const string GrappleWallTag = "GrappleWall";
+
         [Header("Movement")]
         [SerializeField] private float autoRunSpeed = 4f;
         [SerializeField] private float jumpForce = 13f;
@@ -29,6 +32,7 @@ namespace Ciga.Demo
         [SerializeField] private Color grappleAimCircleColor = new Color(1f, 1f, 1f, 0.7f);
         [SerializeField] private Color grappleAimRayColor = new Color(0.35f, 0.85f, 1f, 0.9f);
         [SerializeField] private Color grappleHighlightColor = new Color(1f, 0.9f, 0.2f, 1f);
+        [SerializeField] private Sprite grappleAimSprite;
         [SerializeField] private LayerMask groundMask = 1;
         [SerializeField] private LayerMask grappleMask = 1;
 
@@ -41,14 +45,19 @@ namespace Ciga.Demo
         private LineRenderer grappleAimRayLine;
         private float timeSinceAttack;
         private float defaultGravityScale;
+        private float defaultAnimatorSpeed = 1f;
         private Collider2D grappleTarget;
         private Vector2 grappleLocalPoint;
         private bool grappleStartedFromLeft;
+        private bool grappleStartedAboveTarget;
         private Coroutine climbRoutine;
         private Collider2D aimedGrappleTarget;
         private Vector2 aimedGrapplePoint;
         private SpriteRenderer highlightedRenderer;
         private Color highlightedOriginalColor;
+        private Sprite spriteBeforeGrappleAim;
+        private bool animatorEnabledBeforeGrappleAim;
+        private bool hasGrappleAimVisualOverride;
         private bool jumpRequested;
         private bool isGrounded;
         private bool isWallSliding;
@@ -56,6 +65,7 @@ namespace Ciga.Demo
         private bool isGrappling;
         private bool isGrappleAiming;
         private bool isClimbing;
+        private bool isForcedWallSliding;
         private int currentAttack;
 
         private static readonly int AnimStateHash = Animator.StringToHash("AnimState");
@@ -82,6 +92,10 @@ namespace Ciga.Demo
             grappleLine = GetComponent<LineRenderer>();
             body.freezeRotation = true;
             defaultGravityScale = body.gravityScale;
+            if (animator != null)
+            {
+                defaultAnimatorSpeed = animator.speed;
+            }
 
             if (grappleLine != null)
             {
@@ -133,7 +147,7 @@ namespace Ciga.Demo
                 Kill();
             }
 
-            if (spriteRenderer != null)
+            if (spriteRenderer != null && !isGrappleAiming)
             {
                 spriteRenderer.flipX = false;
             }
@@ -142,12 +156,19 @@ namespace Ciga.Demo
         private void FixedUpdate()
         {
             isGrounded = CheckGrounded();
-            isWallSliding = !isGrounded && !isGrappling && !isClimbing && body.velocity.y < 0f && CheckWallAhead();
+            if (isForcedWallSliding && (isGrounded || !CheckWallBeside()))
+            {
+                isForcedWallSliding = false;
+            }
+
+            bool naturalWallSliding = !isGrounded && !isGrappling && !isClimbing && body.velocity.y < 0f && CheckWallBeside();
+            isWallSliding = isForcedWallSliding || naturalWallSliding;
 
             if (isDead)
             {
                 StopGrapple();
                 StopClimb();
+                isForcedWallSliding = false;
                 isWallSliding = false;
                 ApplyWallSlideGravity();
                 body.velocity = new Vector2(0f, body.velocity.y);
@@ -179,6 +200,7 @@ namespace Ciga.Demo
             if (jumpRequested && isGrounded)
             {
                 StopGrapple();
+                isForcedWallSliding = false;
                 isWallSliding = false;
                 ApplyWallSlideGravity();
                 body.velocity = new Vector2(body.velocity.x, jumpForce);
@@ -211,6 +233,7 @@ namespace Ciga.Demo
             StopGrappleAim();
             StopGrapple();
             StopClimb();
+            isForcedWallSliding = false;
         }
 
         private void Attack()
@@ -242,6 +265,7 @@ namespace Ciga.Demo
             StopGrappleAim();
             StopGrapple();
             StopClimb();
+            isForcedWallSliding = false;
             body.velocity = Vector2.zero;
 
             if (animator != null)
@@ -271,11 +295,27 @@ namespace Ciga.Demo
 
         private void ApplyWallSlideGravity()
         {
-            body.gravityScale = isWallSliding ? defaultGravityScale * wallSlideFallSpeedMultiplier : defaultGravityScale;
+            float gravityScale = defaultGravityScale;
+            if (isWallSliding)
+            {
+                gravityScale *= wallSlideFallSpeedMultiplier;
+            }
+
+            if (isGrappleAiming)
+            {
+                gravityScale *= grappleAimMoveSpeedMultiplier;
+            }
+
+            body.gravityScale = gravityScale;
         }
 
         private void StartGrappleAim()
         {
+            if (isGrappleAiming || isClimbing)
+            {
+                return;
+            }
+
             if (isGrappling)
             {
                 StopGrapple();
@@ -283,6 +323,14 @@ namespace Ciga.Demo
 
             isGrappleAiming = true;
             aimedGrappleTarget = null;
+            body.velocity *= grappleAimMoveSpeedMultiplier;
+            ApplyWallSlideGravity();
+            EnterGrappleAimVisual();
+
+            if (animator != null)
+            {
+                animator.speed = defaultAnimatorSpeed * grappleAimMoveSpeedMultiplier;
+            }
 
             if (grappleAimCircleLine != null)
             {
@@ -304,7 +352,7 @@ namespace Ciga.Demo
                 return;
             }
 
-            Vector2 origin = transform.position;
+            Vector2 origin = GetGrappleOrigin();
             UpdateGrappleAimCircle(origin);
 
             if (!TryGetMouseAimDirection(origin, out Vector2 direction))
@@ -313,6 +361,8 @@ namespace Ciga.Demo
                 UpdateGrappleAimRay(origin, origin);
                 return;
             }
+
+            UpdateGrappleAimFacing(direction);
 
             RaycastHit2D hit = GetFirstGrappleRayHit(origin, direction);
             if (hit.collider != null)
@@ -343,9 +393,22 @@ namespace Ciga.Demo
 
         private void StopGrappleAim()
         {
+            bool wasAiming = isGrappleAiming;
             isGrappleAiming = false;
             aimedGrappleTarget = null;
             ClearGrappleHighlight();
+
+            if (wasAiming)
+            {
+                ApplyWallSlideGravity();
+            }
+
+            if (animator != null)
+            {
+                animator.speed = defaultAnimatorSpeed;
+            }
+
+            ExitGrappleAimVisual();
 
             if (grappleAimCircleLine != null)
             {
@@ -358,11 +421,62 @@ namespace Ciga.Demo
             }
         }
 
+        private void EnterGrappleAimVisual()
+        {
+            if (spriteRenderer == null || grappleAimSprite == null)
+            {
+                return;
+            }
+
+            spriteBeforeGrappleAim = spriteRenderer.sprite;
+            animatorEnabledBeforeGrappleAim = animator != null && animator.enabled;
+            hasGrappleAimVisualOverride = true;
+
+            if (animator != null)
+            {
+                animator.enabled = false;
+            }
+
+            spriteRenderer.sprite = grappleAimSprite;
+        }
+
+        private void UpdateGrappleAimFacing(Vector2 direction)
+        {
+            if (spriteRenderer == null || Mathf.Abs(direction.x) <= 0.01f)
+            {
+                return;
+            }
+
+            spriteRenderer.flipX = direction.x < 0f;
+        }
+
+        private void ExitGrappleAimVisual()
+        {
+            if (!hasGrappleAimVisualOverride)
+            {
+                return;
+            }
+
+            if (spriteRenderer != null && spriteBeforeGrappleAim != null)
+            {
+                spriteRenderer.sprite = spriteBeforeGrappleAim;
+            }
+
+            if (animator != null)
+            {
+                animator.enabled = animatorEnabledBeforeGrappleAim;
+            }
+
+            hasGrappleAimVisualOverride = false;
+            spriteBeforeGrappleAim = null;
+        }
+
         private void StartGrapple(Collider2D target, Vector2 anchorPoint)
         {
             grappleTarget = target;
             grappleLocalPoint = target.transform.InverseTransformPoint(anchorPoint);
             grappleStartedFromLeft = body.position.x <= target.bounds.center.x;
+            grappleStartedAboveTarget = bodyCollider.bounds.min.y >= target.bounds.max.y;
             isGrappling = true;
 
             if (grappleLine != null)
@@ -423,7 +537,7 @@ namespace Ciga.Demo
 
         private bool IsIgnoredGrappleTarget(Collider2D target)
         {
-            return target.gameObject.name == "Ground";
+            return target.gameObject.tag == GroundTag;
         }
 
         private void ApplyGrappleHighlight(Collider2D target)
@@ -533,11 +647,33 @@ namespace Ciga.Demo
 
             if (bodyCollider.IsTouching(grappleTarget) || toTarget.magnitude <= grappleStopDistance)
             {
-                StartGrappleClimb(grappleTarget, grappleStartedFromLeft);
+                ResolveGrappleContact(grappleTarget, grappleStartedFromLeft, grappleStartedAboveTarget, targetPoint);
                 return;
             }
 
             body.velocity = toTarget.normalized * grapplePullSpeed;
+        }
+
+        private void ResolveGrappleContact(Collider2D target, bool fromLeft, bool fromAbove, Vector2 landingPoint)
+        {
+            if (IsGrappleWallTarget(target))
+            {
+                StartGrappleWallSlide(target, fromLeft);
+                return;
+            }
+
+            if (fromAbove)
+            {
+                LandOnGrapplePoint(target, landingPoint);
+                return;
+            }
+
+            StartGrappleClimb(target, fromLeft);
+        }
+
+        private bool IsGrappleWallTarget(Collider2D target)
+        {
+            return target != null && target.gameObject.tag == GrappleWallTag;
         }
 
         private void StopGrapple()
@@ -549,6 +685,27 @@ namespace Ciga.Demo
             {
                 grappleLine.enabled = false;
             }
+        }
+
+        private void StartGrappleWallSlide(Collider2D target, bool fromLeft)
+        {
+            if (target == null)
+            {
+                StopGrapple();
+                return;
+            }
+
+            StopGrapple();
+            StopGrappleAim();
+            StopClimb();
+            PlaceBesideWall(target, fromLeft);
+            isForcedWallSliding = true;
+            isWallSliding = true;
+            isGrounded = false;
+            jumpRequested = false;
+            body.velocity = new Vector2(0f, -0.1f);
+            ApplyWallSlideGravity();
+            UpdateAnimator();
         }
 
         private void StartGrappleClimb(Collider2D target, bool fromLeft)
@@ -611,14 +768,61 @@ namespace Ciga.Demo
             }
         }
 
+        private void PlaceBesideWall(Collider2D target, bool fromLeft)
+        {
+            Bounds targetBounds = target.bounds;
+            Bounds playerBounds = bodyCollider.bounds;
+            float playerCenterOffsetX = playerBounds.center.x - body.position.x;
+            float targetX = fromLeft
+                ? targetBounds.min.x - playerBounds.extents.x - playerCenterOffsetX - 0.02f
+                : targetBounds.max.x + playerBounds.extents.x - playerCenterOffsetX + 0.02f;
+
+            body.position = new Vector2(targetX, body.position.y);
+            Physics2D.SyncTransforms();
+        }
+
+        private void LandOnGrapplePoint(Collider2D target, Vector2 landingPoint)
+        {
+            if (target == null)
+            {
+                StopGrapple();
+                return;
+            }
+
+            StopGrapple();
+            StopGrappleAim();
+            StopClimb();
+            PlaceOnTopAtX(target, landingPoint.x);
+            isGrounded = true;
+            isWallSliding = false;
+            isForcedWallSliding = false;
+            body.gravityScale = defaultGravityScale;
+            body.velocity = Vector2.zero;
+            UpdateAnimator();
+        }
+
         private void PlaceOnTopEdge(Collider2D target, bool fromLeft)
         {
             Bounds targetBounds = target.bounds;
             Bounds playerBounds = bodyCollider.bounds;
             float playerCenterOffsetY = playerBounds.center.y - body.position.y;
-            float targetX = fromLeft
+            float edgeX = fromLeft
                 ? targetBounds.min.x + playerBounds.extents.x
                 : targetBounds.max.x - playerBounds.extents.x;
+
+            PlaceOnTopAtX(target, edgeX);
+        }
+
+        private void PlaceOnTopAtX(Collider2D target, float worldX)
+        {
+            Bounds targetBounds = target.bounds;
+            Bounds playerBounds = bodyCollider.bounds;
+            float playerCenterOffsetY = playerBounds.center.y - body.position.y;
+            float minX = targetBounds.min.x + playerBounds.extents.x;
+            float maxX = targetBounds.max.x - playerBounds.extents.x;
+            float targetX = maxX >= minX
+                ? Mathf.Clamp(worldX, minX, maxX)
+                : targetBounds.center.x;
             float targetY = targetBounds.max.y + playerBounds.extents.y - playerCenterOffsetY + 0.02f;
 
             body.position = new Vector2(targetX, targetY);
@@ -639,8 +843,13 @@ namespace Ciga.Demo
                 return;
             }
 
-            grappleLine.SetPosition(0, transform.position);
+            grappleLine.SetPosition(0, GetGrappleOrigin());
             grappleLine.SetPosition(1, targetPoint);
+        }
+
+        private Vector2 GetGrappleOrigin()
+        {
+            return bodyCollider != null ? bodyCollider.bounds.center : transform.position;
         }
 
         private bool TryGetCurrentGrapplePoint(out Vector2 point)
@@ -675,23 +884,34 @@ namespace Ciga.Demo
             return hit.collider != null && hit.normal.y >= groundNormalThreshold;
         }
 
-        private bool CheckWallAhead()
+        private bool CheckWallBeside()
         {
             Bounds bounds = bodyCollider.bounds;
-            float x = bounds.max.x - 0.02f;
+            float rightX = bounds.max.x - 0.02f;
+            float leftX = bounds.min.x + 0.02f;
             float bottom = bounds.min.y + bounds.size.y * 0.2f;
             float center = bounds.center.y;
             float top = bounds.max.y - bounds.size.y * 0.1f;
 
-            return IsWallAhead(new Vector2(x, bottom))
-                || IsWallAhead(new Vector2(x, center))
-                || IsWallAhead(new Vector2(x, top));
+            return IsWallBeside(new Vector2(rightX, bottom), Vector2.right)
+                || IsWallBeside(new Vector2(rightX, center), Vector2.right)
+                || IsWallBeside(new Vector2(rightX, top), Vector2.right)
+                || IsWallBeside(new Vector2(leftX, bottom), Vector2.left)
+                || IsWallBeside(new Vector2(leftX, center), Vector2.left)
+                || IsWallBeside(new Vector2(leftX, top), Vector2.left);
         }
 
-        private bool IsWallAhead(Vector2 origin)
+        private bool IsWallBeside(Vector2 origin, Vector2 direction)
         {
-            RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.right, wallCheckDistance + 0.04f, groundMask);
-            return hit.collider != null && hit.normal.x <= -groundNormalThreshold;
+            RaycastHit2D hit = Physics2D.Raycast(origin, direction, wallCheckDistance + 0.04f, groundMask);
+            if (hit.collider == null)
+            {
+                return false;
+            }
+
+            return direction.x > 0f
+                ? hit.normal.x <= -groundNormalThreshold
+                : hit.normal.x >= groundNormalThreshold;
         }
 
         private void WrapAtMapEdges()
@@ -704,6 +924,7 @@ namespace Ciga.Demo
             StopGrapple();
             StopGrappleAim();
             StopClimb();
+            isForcedWallSliding = false;
             Vector2 velocity = body.velocity;
             body.position = new Vector2(wrapLeftX, body.position.y);
             body.velocity = velocity;

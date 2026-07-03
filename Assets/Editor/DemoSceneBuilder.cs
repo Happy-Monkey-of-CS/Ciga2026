@@ -1,6 +1,7 @@
 using Ciga.Demo;
 using System.IO;
 using UnityEditor;
+using UnityEditorInternal;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -12,10 +13,18 @@ public static class DemoSceneBuilder
     private const string NoFrictionMaterialPath = "Assets/Demo/NoFriction2D.physicsMaterial2D";
     private const string GrappleRopeTexturePath = "Assets/Demo/GrappleRopeTexture.asset";
     private const string GrappleRopeMaterialPath = "Assets/Demo/GrappleRopeMaterial.mat";
+    private const string StepPrefabPath = "Assets/Prefabs/Step.prefab";
+    private const string TallWallPrefabPath = "Assets/Prefabs/TallWall.prefab";
+    private const string TrapPrefabPath = "Assets/Prefabs/Trap.prefab";
     private const string HeroKnightSpritePath = "Assets/Hero Knight - Pixel Art/Sprites/HeroKnight.png";
+    private const long HeroKnightHurtAimSpriteLocalId = 21300090;
     private const string HeroKnightControllerPath = "Assets/Hero Knight - Pixel Art/Animations/HeroKnight_AnimController.controller";
     private const int GroundLayer = 0;
     private const int PlayerLayer = 2;
+    private const string GroundTag = "DemoGround";
+    private const string StepTag = "GrappleStep";
+    private const string WallTag = "GrappleWall";
+    private const string TrapTag = "Trap";
     private const float DefaultPlayerAutoRunSpeed = 4f;
     private const float DefaultWrapLeftX = -9.5f;
     private const float DefaultWrapRightX = 21f;
@@ -43,6 +52,7 @@ public static class DemoSceneBuilder
     public static void BuildDemoScene()
     {
         EnsureFolders();
+        EnsureTags();
 
         Scene scene = GetOrCreateDemoScene();
         EditorSceneManager.SetActiveScene(scene);
@@ -62,16 +72,17 @@ public static class DemoSceneBuilder
         Sprite whiteSprite = CreateSprite("Assets/Demo/WhitePixelTexture.asset");
         PhysicsMaterial2D noFrictionMaterial = CreateNoFrictionMaterial();
         Material grappleRopeMaterial = CreateGrappleRopeMaterial();
+        EnsureDemoPrefabs(whiteSprite, noFrictionMaterial);
 
         CreateBackground(whiteSprite, world.transform);
-        CreatePlatform("Ground", new Vector2(4f, -2.4f), new Vector2(34f, 1f), new Color(0.2f, 0.5f, 0.25f), whiteSprite, noFrictionMaterial, platforms.transform);
-        CreatePlatform("Step_01", new Vector2(5.2f, -0.8f), new Vector2(3f, 0.45f), new Color(0.32f, 0.62f, 0.32f), whiteSprite, noFrictionMaterial, platforms.transform);
-        CreatePlatform("Step_02", new Vector2(9.2f, 0.5f), new Vector2(3.2f, 0.45f), new Color(0.32f, 0.62f, 0.32f), whiteSprite, noFrictionMaterial, platforms.transform);
-        CreatePlatform("Step_03", new Vector2(14f, -0.2f), new Vector2(4f, 0.45f), new Color(0.32f, 0.62f, 0.32f), whiteSprite, noFrictionMaterial, platforms.transform);
-        CreatePlatform("Tall Wall", new Vector2(17.4f, 0.7f), new Vector2(0.8f, 5.2f), new Color(0.42f, 0.45f, 0.48f), whiteSprite, noFrictionMaterial, platforms.transform);
-        CreateTrap("Trap_01", new Vector2(-1.2f, -1.85f), new Vector2(0.9f, 0.55f), whiteSprite, traps.transform);
-        CreateTrap("Trap_02", new Vector2(7.2f, -2f), new Vector2(1.2f, 0.45f), whiteSprite, traps.transform);
-        CreateTrap("Trap_03", new Vector2(12.1f, -1.86f), new Vector2(1.4f, 0.55f), whiteSprite, traps.transform);
+        CreateGround("Ground", new Vector2(4f, -2.4f), new Vector2(34f, 1f), new Color(0.2f, 0.5f, 0.25f), whiteSprite, noFrictionMaterial, platforms.transform);
+        CreatePrefabInstance(StepPrefabPath, "Step_01", new Vector2(5.2f, -0.8f), new Vector2(3f, 0.45f), new Color(0.32f, 0.62f, 0.32f), platforms.transform);
+        CreatePrefabInstance(StepPrefabPath, "Step_02", new Vector2(9.2f, 0.5f), new Vector2(3.2f, 0.45f), new Color(0.32f, 0.62f, 0.32f), platforms.transform);
+        CreatePrefabInstance(StepPrefabPath, "Step_03", new Vector2(14f, -0.2f), new Vector2(4f, 0.45f), new Color(0.32f, 0.62f, 0.32f), platforms.transform);
+        CreatePrefabInstance(TallWallPrefabPath, "Tall Wall", new Vector2(17.4f, 0.7f), new Vector2(0.8f, 5.2f), new Color(0.42f, 0.45f, 0.48f), platforms.transform);
+        CreatePrefabInstance(TrapPrefabPath, "Trap_01", new Vector2(-1.2f, -1.85f), new Vector2(0.9f, 0.55f), new Color(0.95f, 0.08f, 0.06f), traps.transform);
+        CreatePrefabInstance(TrapPrefabPath, "Trap_02", new Vector2(7.2f, -2f), new Vector2(1.2f, 0.45f), new Color(0.95f, 0.08f, 0.06f), traps.transform);
+        CreatePrefabInstance(TrapPrefabPath, "Trap_03", new Vector2(12.1f, -1.86f), new Vector2(1.4f, 0.55f), new Color(0.95f, 0.08f, 0.06f), traps.transform);
 
         GameObject player = CreatePlayer(whiteSprite, noFrictionMaterial, grappleRopeMaterial);
         GameObject cameraObject = CreateCamera(player.transform);
@@ -133,8 +144,25 @@ public static class DemoSceneBuilder
     private static void EnsureFolders()
     {
         CreateFolderIfMissing("Assets", "Demo");
+        CreateFolderIfMissing("Assets", "Prefabs");
         CreateFolderIfMissing("Assets", "Scenes");
         CreateFolderIfMissing("Assets", "Scripts");
+    }
+
+    private static void EnsureTags()
+    {
+        AddTagIfMissing(GroundTag);
+        AddTagIfMissing(StepTag);
+        AddTagIfMissing(WallTag);
+        AddTagIfMissing(TrapTag);
+    }
+
+    private static void AddTagIfMissing(string tag)
+    {
+        if (System.Array.IndexOf(InternalEditorUtility.tags, tag) < 0)
+        {
+            InternalEditorUtility.AddTag(tag);
+        }
     }
 
     private static void CreateFolderIfMissing(string parent, string folder)
@@ -234,6 +262,44 @@ public static class DemoSceneBuilder
         return material;
     }
 
+    private static void EnsureDemoPrefabs(Sprite sprite, PhysicsMaterial2D material)
+    {
+        CreatePlatformPrefab(StepPrefabPath, "Step", StepTag, new Color(0.32f, 0.62f, 0.32f), sprite, material);
+        CreatePlatformPrefab(TallWallPrefabPath, "TallWall", WallTag, new Color(0.42f, 0.45f, 0.48f), sprite, material);
+        CreateTrapPrefab(sprite);
+        AssetDatabase.SaveAssets();
+    }
+
+    private static void CreatePlatformPrefab(string prefabPath, string name, string tag, Color color, Sprite sprite, PhysicsMaterial2D material)
+    {
+        GameObject template = CreateSpriteObject(name, sprite, Vector2.zero, Vector2.one, color);
+        template.layer = GroundLayer;
+        template.tag = tag;
+        template.GetComponent<SpriteRenderer>().sortingOrder = 0;
+
+        BoxCollider2D collider = template.AddComponent<BoxCollider2D>();
+        collider.size = Vector2.one;
+        collider.sharedMaterial = material;
+
+        PrefabUtility.SaveAsPrefabAsset(template, prefabPath);
+        Object.DestroyImmediate(template);
+    }
+
+    private static void CreateTrapPrefab(Sprite sprite)
+    {
+        GameObject template = CreateSpriteObject("Trap", sprite, Vector2.zero, Vector2.one, new Color(0.95f, 0.08f, 0.06f));
+        template.tag = TrapTag;
+        template.GetComponent<SpriteRenderer>().sortingOrder = 2;
+
+        BoxCollider2D collider = template.AddComponent<BoxCollider2D>();
+        collider.size = Vector2.one;
+        collider.isTrigger = true;
+        template.AddComponent<TrapDeathZone2D>();
+
+        PrefabUtility.SaveAsPrefabAsset(template, TrapPrefabPath);
+        Object.DestroyImmediate(template);
+    }
+
     private static void CreateBackground(Sprite sprite, Transform parent)
     {
         GameObject background = new GameObject("Scrolling Background");
@@ -255,10 +321,11 @@ public static class DemoSceneBuilder
         tile.GetComponent<SpriteRenderer>().sortingOrder = sortingOrder;
     }
 
-    private static GameObject CreatePlatform(string name, Vector2 position, Vector2 scale, Color color, Sprite sprite, PhysicsMaterial2D material, Transform parent)
+    private static GameObject CreateGround(string name, Vector2 position, Vector2 scale, Color color, Sprite sprite, PhysicsMaterial2D material, Transform parent)
     {
         GameObject platform = CreateSpriteObject(name, sprite, position, scale, color);
         platform.layer = GroundLayer;
+        platform.tag = GroundTag;
         platform.transform.SetParent(parent);
         platform.GetComponent<SpriteRenderer>().sortingOrder = 0;
 
@@ -268,18 +335,28 @@ public static class DemoSceneBuilder
         return platform;
     }
 
-    private static GameObject CreateTrap(string name, Vector2 position, Vector2 scale, Sprite sprite, Transform parent)
+    private static GameObject CreatePrefabInstance(string prefabPath, string name, Vector2 position, Vector2 scale, Color color, Transform parent)
     {
-        GameObject trap = CreateSpriteObject(name, sprite, position, scale, new Color(0.95f, 0.08f, 0.06f));
-        trap.transform.SetParent(parent);
-        trap.GetComponent<SpriteRenderer>().sortingOrder = 2;
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        GameObject instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+        if (instance == null)
+        {
+            Debug.LogError($"Could not instantiate prefab at {prefabPath}.");
+            return null;
+        }
 
-        BoxCollider2D collider = trap.AddComponent<BoxCollider2D>();
-        collider.size = Vector2.one;
-        collider.isTrigger = true;
+        instance.name = name;
+        instance.transform.SetParent(parent);
+        instance.transform.position = new Vector3(position.x, position.y, 0f);
+        instance.transform.localScale = new Vector3(scale.x, scale.y, 1f);
 
-        trap.AddComponent<TrapDeathZone2D>();
-        return trap;
+        SpriteRenderer renderer = instance.GetComponent<SpriteRenderer>();
+        if (renderer != null)
+        {
+            renderer.color = color;
+        }
+
+        return instance;
     }
 
     private static GameObject CreatePlayer(Sprite sprite, PhysicsMaterial2D material, Material grappleRopeMaterial)
@@ -289,7 +366,8 @@ public static class DemoSceneBuilder
         player.transform.position = new Vector3(-7f, -1.28f, 0f);
 
         SpriteRenderer renderer = player.AddComponent<SpriteRenderer>();
-        renderer.sprite = LoadHeroKnightPreviewSprite(sprite);
+        Sprite previewSprite = LoadHeroKnightPreviewSprite(sprite);
+        renderer.sprite = previewSprite;
         renderer.color = Color.white;
         renderer.sortingOrder = 10;
 
@@ -334,6 +412,7 @@ public static class DemoSceneBuilder
         serializedController.FindProperty("wallSlideFallSpeedMultiplier").floatValue = 0.35f;
         serializedController.FindProperty("grappleAimRadius").floatValue = 5f;
         serializedController.FindProperty("grappleAimMoveSpeedMultiplier").floatValue = 0.15f;
+        serializedController.FindProperty("grappleAimSprite").objectReferenceValue = LoadHeroKnightAimSprite(previewSprite);
         serializedController.FindProperty("groundNormalThreshold").floatValue = 0.65f;
         serializedController.FindProperty("grapplePullSpeed").floatValue = 14f;
         serializedController.FindProperty("grappleStopDistance").floatValue = 0.65f;
@@ -353,6 +432,22 @@ public static class DemoSceneBuilder
             if (asset is Sprite heroSprite)
             {
                 return heroSprite;
+            }
+        }
+
+        return fallback;
+    }
+
+    private static Sprite LoadHeroKnightAimSprite(Sprite fallback)
+    {
+        Object[] assets = AssetDatabase.LoadAllAssetsAtPath(HeroKnightSpritePath);
+        foreach (Object asset in assets)
+        {
+            if (asset is Sprite sprite
+                && AssetDatabase.TryGetGUIDAndLocalFileIdentifier(sprite, out string _, out long localId)
+                && localId == HeroKnightHurtAimSpriteLocalId)
+            {
+                return sprite;
             }
         }
 
