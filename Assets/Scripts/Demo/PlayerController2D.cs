@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Ciga.Demo
@@ -9,6 +10,7 @@ namespace Ciga.Demo
     {
         private const string GroundTag = "DemoGround";
         private const string GrappleWallTag = "GrappleWall";
+        private const float PulledObjectSkinWidth = 0.01f;
 
         [Header("Movement")]
         [SerializeField] private float autoRunSpeed = 4f;
@@ -26,8 +28,12 @@ namespace Ciga.Demo
         [SerializeField] private float grappleAimRadius = 5f;
         [SerializeField, Range(0.01f, 1f)] private float grappleAimMoveSpeedMultiplier = 0.15f;
         [SerializeField] private float grapplePullSpeed = 14f;
+        [Tooltip("Speed used when the grapple pulls a target object toward the player while auto-run is blocked.")]
+        [SerializeField] private float grappleObjectPullSpeed = 8f;
         [SerializeField] private float grappleStopDistance = 0.65f;
         [SerializeField] private float grappleClimbAnimationDuration = 0.45f;
+        [Tooltip("Forward ray distance used to decide whether auto-run is currently blocked by an obstacle.")]
+        [SerializeField] private float runBlockedCheckDistance = 0.12f;
         [SerializeField] private int grappleAimCircleSegments = 72;
         [SerializeField] private Color grappleAimCircleColor = new Color(1f, 1f, 1f, 0.7f);
         [SerializeField] private Color grappleAimRayColor = new Color(0.35f, 0.85f, 1f, 0.9f);
@@ -50,6 +56,8 @@ namespace Ciga.Demo
         private Vector2 grappleLocalPoint;
         private bool grappleStartedFromLeft;
         private bool grappleStartedAboveTarget;
+        private Collider2D pulledGrappleTarget;
+        private Vector2 pulledGrappleLocalPoint;
         private Coroutine climbRoutine;
         private Collider2D aimedGrappleTarget;
         private Vector2 aimedGrapplePoint;
@@ -63,10 +71,14 @@ namespace Ciga.Demo
         private bool isWallSliding;
         private bool isDead;
         private bool isGrappling;
+        private bool isPullingGrappleObject;
         private bool isGrappleAiming;
         private bool isClimbing;
         private bool isForcedWallSliding;
         private int currentAttack;
+        private readonly RaycastHit2D[] pulledObjectCastResults = new RaycastHit2D[16];
+        private readonly Collider2D[] pulledObjectOverlapResults = new Collider2D[16];
+        private readonly List<Collider2D> initialPulledObjectOverlaps = new List<Collider2D>();
 
         private static readonly int AnimStateHash = Animator.StringToHash("AnimState");
         private static readonly int GroundedHash = Animator.StringToHash("Grounded");
@@ -167,6 +179,7 @@ namespace Ciga.Demo
             if (isDead)
             {
                 StopGrapple();
+                StopPullGrappleObject();
                 StopClimb();
                 isForcedWallSliding = false;
                 isWallSliding = false;
@@ -188,7 +201,12 @@ namespace Ciga.Demo
 
             ApplyWallSlideGravity();
 
-            if (isGrappling)
+            if (isPullingGrappleObject)
+            {
+                body.velocity = new Vector2(GetCurrentAutoRunSpeed(), body.velocity.y);
+                PullGrappleObjectTowardPlayer();
+            }
+            else if (isGrappling)
             {
                 PullTowardGrapplePoint();
             }
@@ -200,6 +218,7 @@ namespace Ciga.Demo
             if (jumpRequested && isGrounded)
             {
                 StopGrapple();
+                StopPullGrappleObject();
                 isForcedWallSliding = false;
                 isWallSliding = false;
                 ApplyWallSlideGravity();
@@ -232,6 +251,7 @@ namespace Ciga.Demo
         {
             StopGrappleAim();
             StopGrapple();
+            StopPullGrappleObject();
             StopClimb();
             isForcedWallSliding = false;
         }
@@ -264,6 +284,7 @@ namespace Ciga.Demo
             jumpRequested = false;
             StopGrappleAim();
             StopGrapple();
+            StopPullGrappleObject();
             StopClimb();
             isForcedWallSliding = false;
             body.velocity = Vector2.zero;
@@ -319,6 +340,11 @@ namespace Ciga.Demo
             if (isGrappling)
             {
                 StopGrapple();
+            }
+
+            if (isPullingGrappleObject)
+            {
+                StopPullGrappleObject();
             }
 
             isGrappleAiming = true;
@@ -387,6 +413,12 @@ namespace Ciga.Demo
 
             if (target != null && !target.isTrigger)
             {
+                if (IsRunBlockedAhead())
+                {
+                    StartPullGrappleObject(target, targetPoint);
+                    return;
+                }
+
                 StartGrapple(target, targetPoint);
             }
         }
@@ -473,11 +505,31 @@ namespace Ciga.Demo
 
         private void StartGrapple(Collider2D target, Vector2 anchorPoint)
         {
+            StopPullGrappleObject();
             grappleTarget = target;
             grappleLocalPoint = target.transform.InverseTransformPoint(anchorPoint);
             grappleStartedFromLeft = body.position.x <= target.bounds.center.x;
             grappleStartedAboveTarget = bodyCollider.bounds.min.y >= target.bounds.max.y;
             isGrappling = true;
+
+            if (grappleLine != null)
+            {
+                grappleLine.enabled = true;
+            }
+        }
+
+        private void StartPullGrappleObject(Collider2D target, Vector2 anchorPoint)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            StopGrapple();
+            pulledGrappleTarget = target;
+            pulledGrappleLocalPoint = target.transform.InverseTransformPoint(anchorPoint);
+            CacheInitialPulledObjectOverlaps(target);
+            isPullingGrappleObject = true;
 
             if (grappleLine != null)
             {
@@ -654,6 +706,43 @@ namespace Ciga.Demo
             body.velocity = toTarget.normalized * grapplePullSpeed;
         }
 
+        private void PullGrappleObjectTowardPlayer()
+        {
+            if (!TryGetCurrentPulledObjectPoint(out Vector2 anchorPoint))
+            {
+                StopPullGrappleObject();
+                return;
+            }
+
+            Vector2 toPlayer = GetGrappleOrigin() - anchorPoint;
+            if (toPlayer.magnitude <= grappleStopDistance || HasPulledObjectHitNewCollider())
+            {
+                StopPullGrappleObject();
+                return;
+            }
+
+            Vector2 movement = toPlayer.normalized * grappleObjectPullSpeed * Time.fixedDeltaTime;
+            if (movement.sqrMagnitude > toPlayer.sqrMagnitude)
+            {
+                movement = toPlayer;
+            }
+
+            bool willHitCollider = TryClipPulledObjectMovement(movement, out movement);
+            if (movement.sqrMagnitude <= 0.000001f)
+            {
+                StopPullGrappleObject();
+                return;
+            }
+
+            pulledGrappleTarget.transform.position += (Vector3)movement;
+            Physics2D.SyncTransforms();
+
+            if (willHitCollider || HasPulledObjectHitNewCollider())
+            {
+                StopPullGrappleObject();
+            }
+        }
+
         private void ResolveGrappleContact(Collider2D target, bool fromLeft, bool fromAbove, Vector2 landingPoint)
         {
             if (IsGrappleWallTarget(target))
@@ -681,7 +770,19 @@ namespace Ciga.Demo
             isGrappling = false;
             grappleTarget = null;
 
-            if (grappleLine != null)
+            if (grappleLine != null && !isPullingGrappleObject)
+            {
+                grappleLine.enabled = false;
+            }
+        }
+
+        private void StopPullGrappleObject()
+        {
+            isPullingGrappleObject = false;
+            pulledGrappleTarget = null;
+            initialPulledObjectOverlaps.Clear();
+
+            if (grappleLine != null && !isGrappling)
             {
                 grappleLine.enabled = false;
             }
@@ -832,14 +933,15 @@ namespace Ciga.Demo
 
         private void UpdateGrappleLine()
         {
-            if (!isGrappling || grappleLine == null)
+            if ((!isGrappling && !isPullingGrappleObject) || grappleLine == null)
             {
                 return;
             }
 
-            if (!TryGetCurrentGrapplePoint(out Vector2 targetPoint))
+            if (!TryGetVisibleGrappleEndPoint(out Vector2 targetPoint))
             {
                 StopGrapple();
+                StopPullGrappleObject();
                 return;
             }
 
@@ -862,6 +964,28 @@ namespace Ciga.Demo
 
             point = grappleTarget.transform.TransformPoint(grappleLocalPoint);
             return true;
+        }
+
+        private bool TryGetCurrentPulledObjectPoint(out Vector2 point)
+        {
+            if (pulledGrappleTarget == null)
+            {
+                point = default;
+                return false;
+            }
+
+            point = pulledGrappleTarget.transform.TransformPoint(pulledGrappleLocalPoint);
+            return true;
+        }
+
+        private bool TryGetVisibleGrappleEndPoint(out Vector2 point)
+        {
+            if (isPullingGrappleObject)
+            {
+                return TryGetCurrentPulledObjectPoint(out point);
+            }
+
+            return TryGetCurrentGrapplePoint(out point);
         }
 
         private bool CheckGrounded()
@@ -914,6 +1038,43 @@ namespace Ciga.Demo
                 : hit.normal.x >= groundNormalThreshold;
         }
 
+        private bool IsRunBlockedAhead()
+        {
+            Bounds bounds = bodyCollider.bounds;
+            float rightX = bounds.max.x - 0.02f;
+            float bottom = bounds.min.y + bounds.size.y * 0.2f;
+            float center = bounds.center.y;
+            float top = bounds.max.y - bounds.size.y * 0.1f;
+
+            return IsRunBlockedAheadFrom(new Vector2(rightX, bottom))
+                || IsRunBlockedAheadFrom(new Vector2(rightX, center))
+                || IsRunBlockedAheadFrom(new Vector2(rightX, top));
+        }
+
+        private bool IsRunBlockedAheadFrom(Vector2 origin)
+        {
+            RaycastHit2D[] hits = Physics2D.RaycastAll(origin, Vector2.right, runBlockedCheckDistance, grappleMask);
+            RaycastHit2D bestHit = default;
+            float bestDistance = float.PositiveInfinity;
+
+            for (int i = 0; i < hits.Length; i++)
+            {
+                RaycastHit2D hit = hits[i];
+                if (hit.collider == null || hit.collider == bodyCollider || hit.collider.isTrigger || IsIgnoredGrappleTarget(hit.collider))
+                {
+                    continue;
+                }
+
+                if (hit.distance < bestDistance)
+                {
+                    bestHit = hit;
+                    bestDistance = hit.distance;
+                }
+            }
+
+            return bestHit.collider != null && bestHit.normal.x <= -groundNormalThreshold;
+        }
+
         private void WrapAtMapEdges()
         {
             if (!wrapAtMapEdges || body.position.x < wrapRightX)
@@ -922,6 +1083,7 @@ namespace Ciga.Demo
             }
 
             StopGrapple();
+            StopPullGrappleObject();
             StopGrappleAim();
             StopClimb();
             isForcedWallSliding = false;
@@ -943,8 +1105,161 @@ namespace Ciga.Demo
             wallSlideFallSpeedMultiplier = Mathf.Clamp(wallSlideFallSpeedMultiplier, 0.05f, 1f);
             grappleAimRadius = Mathf.Max(0.1f, grappleAimRadius);
             grappleAimMoveSpeedMultiplier = Mathf.Clamp(grappleAimMoveSpeedMultiplier, 0.01f, 1f);
+            grappleObjectPullSpeed = Mathf.Max(0.1f, grappleObjectPullSpeed);
             grappleClimbAnimationDuration = Mathf.Max(0f, grappleClimbAnimationDuration);
+            runBlockedCheckDistance = Mathf.Max(0.01f, runBlockedCheckDistance);
             grappleAimCircleSegments = Mathf.Max(12, grappleAimCircleSegments);
+        }
+
+        private void CacheInitialPulledObjectOverlaps(Collider2D target)
+        {
+            initialPulledObjectOverlaps.Clear();
+            int overlapCount = target.OverlapCollider(CreatePulledObjectContactFilter(), pulledObjectOverlapResults);
+            for (int i = 0; i < overlapCount; i++)
+            {
+                Collider2D overlap = pulledObjectOverlapResults[i];
+                if (overlap != null && overlap != target && overlap != bodyCollider)
+                {
+                    initialPulledObjectOverlaps.Add(overlap);
+                }
+            }
+        }
+
+        private bool HasPulledObjectHitNewCollider()
+        {
+            if (pulledGrappleTarget == null)
+            {
+                return true;
+            }
+
+            int overlapCount = pulledGrappleTarget.OverlapCollider(CreatePulledObjectContactFilter(), pulledObjectOverlapResults);
+            for (int i = 0; i < overlapCount; i++)
+            {
+                Collider2D overlap = pulledObjectOverlapResults[i];
+                if (overlap == null || overlap == pulledGrappleTarget)
+                {
+                    continue;
+                }
+
+                if (overlap != bodyCollider && initialPulledObjectOverlaps.Contains(overlap))
+                {
+                    continue;
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryClipPulledObjectMovement(Vector2 requestedMovement, out Vector2 clippedMovement)
+        {
+            clippedMovement = requestedMovement;
+            if (pulledGrappleTarget == null)
+            {
+                return true;
+            }
+
+            float requestedDistance = requestedMovement.magnitude;
+            if (requestedDistance <= 0.0001f)
+            {
+                clippedMovement = Vector2.zero;
+                return false;
+            }
+
+            Vector2 direction = requestedMovement / requestedDistance;
+            if (IsMovingIntoInitialPulledObjectOverlap(direction))
+            {
+                clippedMovement = Vector2.zero;
+                return true;
+            }
+
+            int hitCount = pulledGrappleTarget.Cast(
+                direction,
+                CreatePulledObjectContactFilter(),
+                pulledObjectCastResults,
+                requestedDistance + PulledObjectSkinWidth);
+
+            float nearestDistance = float.PositiveInfinity;
+            bool hasBlockingHit = false;
+            for (int i = 0; i < hitCount; i++)
+            {
+                RaycastHit2D hit = pulledObjectCastResults[i];
+                if (hit.collider == null || hit.collider == pulledGrappleTarget)
+                {
+                    continue;
+                }
+
+                if (hit.distance < nearestDistance)
+                {
+                    nearestDistance = hit.distance;
+                    hasBlockingHit = true;
+                }
+            }
+
+            if (!hasBlockingHit)
+            {
+                return false;
+            }
+
+            float safeDistance = Mathf.Max(0f, nearestDistance - PulledObjectSkinWidth);
+            clippedMovement = direction * Mathf.Min(requestedDistance, safeDistance);
+            return true;
+        }
+
+        private bool IsMovingIntoInitialPulledObjectOverlap(Vector2 direction)
+        {
+            if (pulledGrappleTarget == null)
+            {
+                return true;
+            }
+
+            Bounds pulledBounds = pulledGrappleTarget.bounds;
+            Vector2 pulledCenter = pulledBounds.center;
+            for (int i = initialPulledObjectOverlaps.Count - 1; i >= 0; i--)
+            {
+                Collider2D overlap = initialPulledObjectOverlaps[i];
+                if (overlap == null)
+                {
+                    initialPulledObjectOverlaps.RemoveAt(i);
+                    continue;
+                }
+
+                ColliderDistance2D distance = pulledGrappleTarget.Distance(overlap);
+                if (!distance.isOverlapped && distance.distance > PulledObjectSkinWidth * 2f)
+                {
+                    initialPulledObjectOverlaps.RemoveAt(i);
+                    continue;
+                }
+
+                Vector2 closestPoint = overlap.ClosestPoint(pulledCenter);
+                Vector2 toOverlap = closestPoint - pulledCenter;
+                if (toOverlap.sqrMagnitude <= 0.0001f)
+                {
+                    toOverlap = (Vector2)overlap.bounds.center - pulledCenter;
+                }
+
+                if (toOverlap.sqrMagnitude <= 0.0001f)
+                {
+                    continue;
+                }
+
+                if (Vector2.Dot(direction, toOverlap.normalized) > 0.05f)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static ContactFilter2D CreatePulledObjectContactFilter()
+        {
+            ContactFilter2D filter = new ContactFilter2D
+            {
+                useTriggers = true
+            };
+            return filter;
         }
     }
 }
