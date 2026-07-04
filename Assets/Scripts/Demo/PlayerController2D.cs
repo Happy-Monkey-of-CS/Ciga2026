@@ -103,6 +103,12 @@ namespace Ciga.Demo
         private Collider2D bodyCollider;
         private Animator animator;
         private SpriteRenderer spriteRenderer;
+        private Vector2 initialBoxColliderOffset;
+        private Vector2 initialCapsuleColliderOffset;
+        private Vector2 initialCircleColliderOffset;
+        private bool hasBoxColliderOffset;
+        private bool hasCapsuleColliderOffset;
+        private bool hasCircleColliderOffset;
         private LineRenderer grappleLine;
         private LineRenderer grappleAimCircleLine;
         private LineRenderer grappleAimRayLine;
@@ -195,6 +201,7 @@ namespace Ciga.Demo
             animator = GetComponent<Animator>();
             spriteRenderer = GetComponent<SpriteRenderer>();
             grappleLine = GetComponent<LineRenderer>();
+            CacheColliderOffset();
             body.freezeRotation = true;
             defaultGravityScale = body.gravityScale;
             if (animator != null)
@@ -277,7 +284,7 @@ namespace Ciga.Demo
 
             if (spriteRenderer != null && !isGrappleAiming && !isStrikeAiming && !isWallSliding && !isWallJumpControlling)
             {
-                spriteRenderer.flipX = false;
+                SetSpriteFacingLeft(false);
             }
         }
 
@@ -779,7 +786,7 @@ namespace Ciga.Demo
                 return;
             }
 
-            spriteRenderer.flipX = wallSide < 0;
+            SetSpriteFacingLeft(wallSide < 0);
         }
 
         private void UpdateWallJumpFacing()
@@ -789,7 +796,60 @@ namespace Ciga.Demo
                 return;
             }
 
-            spriteRenderer.flipX = wallJumpHorizontalVelocity < 0f;
+            SetSpriteFacingLeft(wallJumpHorizontalVelocity < 0f);
+        }
+
+        private void CacheColliderOffset()
+        {
+            if (bodyCollider is BoxCollider2D box)
+            {
+                initialBoxColliderOffset = box.offset;
+                hasBoxColliderOffset = true;
+            }
+
+            if (bodyCollider is CapsuleCollider2D capsule)
+            {
+                initialCapsuleColliderOffset = capsule.offset;
+                hasCapsuleColliderOffset = true;
+            }
+
+            if (bodyCollider is CircleCollider2D circle)
+            {
+                initialCircleColliderOffset = circle.offset;
+                hasCircleColliderOffset = true;
+            }
+        }
+
+        private void SetSpriteFacingLeft(bool facingLeft)
+        {
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.flipX = facingLeft;
+            }
+
+            ApplyColliderFacing(facingLeft);
+        }
+
+        private void ApplyColliderFacing(bool facingLeft)
+        {
+            float sign = facingLeft ? -1f : 1f;
+
+            if (hasBoxColliderOffset && bodyCollider is BoxCollider2D box)
+            {
+                box.offset = new Vector2(initialBoxColliderOffset.x * sign, initialBoxColliderOffset.y);
+                return;
+            }
+
+            if (hasCapsuleColliderOffset && bodyCollider is CapsuleCollider2D capsule)
+            {
+                capsule.offset = new Vector2(initialCapsuleColliderOffset.x * sign, initialCapsuleColliderOffset.y);
+                return;
+            }
+
+            if (hasCircleColliderOffset && bodyCollider is CircleCollider2D circle)
+            {
+                circle.offset = new Vector2(initialCircleColliderOffset.x * sign, initialCircleColliderOffset.y);
+            }
         }
 
         private bool ShouldPlayRunAnimation()
@@ -1032,7 +1092,7 @@ namespace Ciga.Demo
                 return;
             }
 
-            spriteRenderer.flipX = direction.x < 0f;
+            SetSpriteFacingLeft(direction.x < 0f);
         }
 
         private void ExitGrappleAimVisual()

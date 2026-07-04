@@ -16,7 +16,6 @@ public static class MermaidPlayerAnimationBuilder
     public const string DemoScenePath = "Assets/Scenes/demo.unity";
 
     private const string ClipFolder = "Assets/Demo/Mermaid/Clips";
-    private const string DeathFallbackClipPath = "Assets/Hero Knight - Pixel Art/Animations/HeroKnight_Death.anim";
     private const string MermaidChainMaterialPath = "Assets/Demo/Mermaid/MermaidChainMaterial.mat";
 
     [MenuItem("Tools/Ciga/Apply Mermaid Player To Demo Scene")]
@@ -87,7 +86,7 @@ public static class MermaidPlayerAnimationBuilder
         AnimationClip climb = CreateClip("Mermaid_Climb", false, 0.16f, "Climb_1", "Climb_2");
         AnimationClip pullObject = CreateClip("Mermaid_PullObject", true, 0.12f, "WallJump_1", "WallJump_2", "WallJump_3");
         AnimationClip attack = CreateClip("Mermaid_AttackH", false, 0.08f, "AttackH_1", "AttackH_2", "AttackH_3", "AttackH_4");
-        AnimationClip death = AssetDatabase.LoadAssetAtPath<AnimationClip>(DeathFallbackClipPath);
+        AnimationClip death = CreateClip("Mermaid_Death", false, 0.14f, "Die_1", "Die_2", "Die_3");
 
         AnimatorController existing = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
         if (existing != null)
@@ -484,6 +483,7 @@ public static class MermaidPlayerAnimationBuilder
             frameRate = Mathf.RoundToInt(1f / Mathf.Max(0.01f, frameDuration))
         };
         AssetDatabase.CreateAsset(clip, clipPath);
+        AssetDatabase.ImportAsset(clipPath, ImportAssetOptions.ForceUpdate);
 
         List<ObjectReferenceKeyframe> frames = new List<ObjectReferenceKeyframe>();
         for (int i = 0; i < spriteNames.Length; i++)
@@ -528,6 +528,7 @@ public static class MermaidPlayerAnimationBuilder
         };
         AnimationUtility.SetObjectReferenceCurve(clip, binding, frames.ToArray());
         EditorUtility.SetDirty(clip);
+        AssetDatabase.SaveAssetIfDirty(clip);
         return clip;
     }
 

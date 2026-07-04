@@ -31,7 +31,7 @@ Transform:
   m_GameObject: {fileID: 2168544934162018324}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -11.95, y: -2.13, z: 0}
+  m_LocalPosition: {x: -11.813, y: -1.718, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -169,10 +169,10 @@ BoxCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0.662}
+  m_Offset: {x: -0.0000052452087, y: 0.006907344}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.5, y: 0}
+    pivot: {x: 0.5, y: 0.5}
     oldSize: {x: 0.6666667, y: 0.93333334}
     newSize: {x: 3.125, y: 1.71875}
     adaptiveTilingThreshold: 0.5
@@ -180,7 +180,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 0.73, y: 1.2}
+  m_Size: {x: 0.628665, y: 0.9765856}
   m_EdgeRadius: 0
 --- !u!120 &8894833187770020721
 LineRenderer:
@@ -333,6 +333,7 @@ MonoBehaviour:
   grappleAimCircleColor: {r: 1, g: 1, b: 1, a: 0.7}
   grappleAimRayColor: {r: 0.35, g: 0.85, b: 1, a: 0.9}
   grappleHighlightColor: {r: 1, g: 0.9, b: 0.2, a: 1}
+  grappleHighlightOutlineThickness: 0.08
   grappleAimSprite: {fileID: 21300000, guid: ab8eb6e4510af374e8ee72a4ec144607, type: 3}
   grappleAimRayMaterial: {fileID: 2100000, guid: 56b2cc27377049042a732d3b50da507c, type: 2}
   grappleRopeSprite: {fileID: 21300000, guid: ef553944fff5d5c4faeaee0dc736e525, type: 3}
@@ -343,7 +344,7 @@ MonoBehaviour:
   strikeObjectSpeed: 12
   strikeAimSprite: {fileID: 21300000, guid: ab8eb6e4510af374e8ee72a4ec144607, type: 3}
   anchorSprite: {fileID: 21300000, guid: 1830128b4d7962245b483656a34c448b, type: 3}
-  anchorScale: 0.05
+  anchorScale: 1
   restartOnDeath: 1
   deathRestartDelay: 1.5
   jumpClip: {fileID: 8300000, guid: 5783f87121f3cb448848c4771695c536, type: 3}

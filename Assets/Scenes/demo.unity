@@ -5396,6 +5396,20 @@ MonoBehaviour:
   preserveVelocity: 1
   cooldown: 0.3
   teleportClip: {fileID: 0}
+  useScreenFade: 1
+  fadeColor: {r: 0, g: 0, b: 0, a: 0.85}
+  fadeOutDuration: 0.25
+  fadeHoldDuration: 0.12
+  fadeInDuration: 0.35
+  fadeTeleportedSprite: 1
+  spriteFadeDuration: 0.22
+  freezeDuringEffect: 1
+  spawnArrivalRing: 1
+  arrivalRingColor: {r: 0.2, g: 0.95, b: 1, a: 0.9}
+  arrivalRingDuration: 0.65
+  arrivalRingStartRadius: 0.25
+  arrivalRingEndRadius: 1.1
+  arrivalRingWidth: 0.055
 --- !u!61 &917821615
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -5871,10 +5885,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70934acda3c6653478071e18cbaaa5f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  resetVelocity: 1
-  cooldown: 0.5
-  triggerClip: {fileID: 0}
-  lastTriggerTime: -3.4028235e+38
 --- !u!61 &1018486174
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -7593,10 +7603,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70934acda3c6653478071e18cbaaa5f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  resetVelocity: 1
-  cooldown: 0.5
-  triggerClip: {fileID: 0}
-  lastTriggerTime: -3.4028235e+38
 --- !u!61 &1290487562
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -9671,7 +9677,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6636181637265966830, guid: 29b91d78486479648a42e9b30da96a96, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.38
+      value: -0.61
       objectReference: {fileID: 0}
     - target: {fileID: 6636181637265966830, guid: 29b91d78486479648a42e9b30da96a96, type: 3}
       propertyPath: m_LocalPosition.z
@@ -11956,13 +11962,17 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player
       objectReference: {fileID: 0}
+    - target: {fileID: 2308359177570822296, guid: 955b1c42b5236c9459f743f2c753d2b7, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: 5f792ab35438eb540bc42ec8800a028f, type: 2}
     - target: {fileID: 5032610387506111002, guid: 955b1c42b5236c9459f743f2c753d2b7, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -11.864
+      value: -12.41
       objectReference: {fileID: 0}
     - target: {fileID: 5032610387506111002, guid: 955b1c42b5236c9459f743f2c753d2b7, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -2.79
+      value: -2.27
       objectReference: {fileID: 0}
     - target: {fileID: 5032610387506111002, guid: 955b1c42b5236c9459f743f2c753d2b7, type: 3}
       propertyPath: m_LocalPosition.z

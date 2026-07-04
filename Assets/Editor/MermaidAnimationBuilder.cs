@@ -39,7 +39,7 @@ namespace Ciga.Editor
             AnimationClip wallSlideClip= CreateClip("WallSlide",new[] { "WallSlide_1", "WallSlide_2" });
             AnimationClip climbClip    = CreateClip("Climb",    new[] { "Climb_1", "Climb_2" });
             AnimationClip wallJumpClip = CreateClip("WallJump", new[] { "WallJump_1", "WallJump_2", "WallJump_3" });
-            AnimationClip deathClip    = CreateClip("Death",    new[] { "Idle_1" }); // single frame placeholder
+            AnimationClip deathClip    = CreateClip("Death",    new[] { "Die_1", "Die_2", "Die_3" });
             AnimationClip attack1Clip  = CreateClip("Attack1",  new[] { "AttackH_1", "AttackH_2", "AttackH_3", "AttackH_4" });
             AnimationClip attack2Clip  = CreateClip("Attack2",  new[] { "AttackU_1", "AttackU_2", "AttackU_3" });
             AnimationClip attack3Clip  = CreateClip("Attack3",  new[] { "AttackD_1", "AttackD_2", "AttackD_3", "AttackD_4" });
