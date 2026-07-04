@@ -153,6 +153,7 @@ public static class BossSceneBuilder
         CreateCamera(player.transform);
         CreateVoidZones(world.transform);
         CreateInstructions();
+        CreateCollectibleHUD();
 
         Selection.activeGameObject = boss;
         EditorSceneManager.MarkSceneDirty(scene);
@@ -692,5 +693,21 @@ public static class BossSceneBuilder
         collider.size = size;
 
         voidZone.AddComponent<VoidZone2D>();
+    }
+
+    private const string CollectibleHUDPrefabPath = "Assets/Prefabs/CollectibleHUD.prefab";
+
+    private static void CreateCollectibleHUD()
+    {
+        GameObject hudPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CollectibleHUDPrefabPath);
+        if (hudPrefab == null)
+        {
+            Debug.LogWarning("[BossSceneBuilder] CollectibleHUD prefab not found. Run Tools → Ciga → Create Collectible HUD Prefab first.");
+            return;
+        }
+
+        GameObject hud = (GameObject)PrefabUtility.InstantiatePrefab(hudPrefab);
+        hud.name = "CollectibleHUD";
+        Debug.Log("[BossSceneBuilder] CollectibleHUD added to scene.");
     }
 }
