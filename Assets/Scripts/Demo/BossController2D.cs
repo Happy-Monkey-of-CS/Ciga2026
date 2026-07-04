@@ -441,6 +441,15 @@ namespace Ciga.Demo
             if (lockedStepMover != null)
             {
                 lockedStepMover.BeginExternalMovement();
+                lockedStepMover.OnStruck();
+
+                // OnStruck may have destroyed the target
+                if (target == null || lockedStepMover == null)
+                {
+                    HideLine();
+                    isBusy = false;
+                    yield break;
+                }
             }
 
             float elapsed = 0f;
@@ -476,6 +485,15 @@ namespace Ciga.Demo
             if (lockedStepMover != null)
             {
                 lockedStepMover.BeginExternalMovement();
+                lockedStepMover.OnStruck();
+
+                // OnStruck may have destroyed the target
+                if (target == null || lockedStepMover == null)
+                {
+                    HideLine();
+                    isBusy = false;
+                    yield break;
+                }
             }
 
             Vector2 direction = ((Vector2)target.bounds.center - (Vector2)transform.position).normalized;

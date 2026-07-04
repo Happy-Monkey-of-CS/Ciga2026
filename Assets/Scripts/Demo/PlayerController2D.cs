@@ -55,6 +55,11 @@ namespace Ciga.Demo
         [SerializeField] private float strikeAimRadius = 2f;
         [SerializeField] private float strikeObjectSpeed = 12f;
         [SerializeField] private Sprite strikeAimSprite;
+        [Header("Visual")]
+        [Tooltip("Anchor icon shown at the aim target point during grapple/strike aim.")]
+        [SerializeField] private Sprite anchorSprite;
+        [Tooltip("Scale multiplier for the anchor indicator. Tune until it visually matches the chain.")]
+        [SerializeField] private float anchorScale = 0.5f;
         [Header("Death")]
         [SerializeField] private bool restartOnDeath = true;
         [SerializeField] private float deathRestartDelay = 1.5f;
@@ -136,6 +141,7 @@ namespace Ciga.Demo
         private bool wasStrikingObject;
         private bool footstepLoopActive;
         private bool wallSlideLoopActive;
+        private GameObject anchorIndicator;
         private bool grapplePullLoopActive;
         private bool grappleObjectLoopActive;
         private bool strikeObjectLoopActive;
@@ -242,6 +248,11 @@ namespace Ciga.Demo
             if (Input.GetKeyDown(KeyCode.K))
             {
                 Kill();
+            }
+
+            if (Input.GetKeyDown(KeyCode.Q))
+            {
+                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
             }
 
             if (spriteRenderer != null && !isGrappleAiming && !isStrikeAiming && !isWallSliding && !isWallJumpControlling)
@@ -428,6 +439,36 @@ namespace Ciga.Demo
                 manager.StopLoop(key);
             }
             active = false;
+        }
+
+        // ---- anchor indicator -------------------------------------------------------
+
+        private void CreateAnchorIndicator()
+        {
+            if (anchorSprite == null) return;
+            DestroyAnchorIndicator();
+            anchorIndicator = new GameObject("AnchorIndicator");
+            anchorIndicator.transform.localScale = Vector3.one * anchorScale;
+            SpriteRenderer sr = anchorIndicator.AddComponent<SpriteRenderer>();
+            sr.sprite = anchorSprite;
+            sr.sortingOrder = 20;
+        }
+
+        private void DestroyAnchorIndicator()
+        {
+            if (anchorIndicator != null)
+            {
+                Destroy(anchorIndicator);
+                anchorIndicator = null;
+            }
+        }
+
+        private void UpdateAnchorIndicator(Vector2 position, Vector2 direction)
+        {
+            if (anchorIndicator == null) return;
+            anchorIndicator.transform.position = position;
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg + 90f;
+            anchorIndicator.transform.rotation = Quaternion.Euler(0f, 0f, angle);
         }
 
         private void StopAllAudioLoops()
@@ -802,6 +843,7 @@ namespace Ciga.Demo
             }
 
             PlaySound(grappleAimStartClip);
+            CreateAnchorIndicator();
             UpdateGrappleAim();
         }
 
@@ -831,12 +873,14 @@ namespace Ciga.Demo
                 aimedGrapplePoint = hit.point;
                 ApplyGrappleHighlight(aimedGrappleTarget);
                 UpdateGrappleAimRay(origin, aimedGrapplePoint);
+                UpdateAnchorIndicator(aimedGrapplePoint, direction);
                 return;
             }
 
             aimedGrappleTarget = null;
             ClearGrappleHighlight();
             UpdateGrappleAimRay(origin, origin + direction * grappleAimRadius);
+            UpdateAnchorIndicator(origin + direction * grappleAimRadius, direction);
         }
 
         private void ReleaseGrappleAim()
@@ -888,6 +932,8 @@ namespace Ciga.Demo
             {
                 grappleAimRayLine.enabled = false;
             }
+
+            DestroyAnchorIndicator();
         }
 
         private void EnterGrappleAimVisual()
@@ -979,6 +1025,19 @@ namespace Ciga.Demo
             if (grappleLine != null)
             {
                 grappleLine.enabled = true;
+            }
+
+            // Notify step it's been pulled (for breakable steps)
+            StepMover2D stepMover = target.GetComponent<StepMover2D>();
+            if (stepMover != null)
+            {
+                stepMover.OnStruck();
+
+                // OnStruck may have destroyed the target
+                if (target == null)
+                {
+                    StopPullGrappleObject();
+                }
             }
         }
 
@@ -1305,6 +1364,19 @@ namespace Ciga.Demo
             CacheInitialStruckObjectOverlaps(target);
             CacheEnemiesCarriedByStruckStep(target);
             isStrikingObject = true;
+
+            // Notify the step that it's been struck (for breakable steps)
+            StepMover2D stepMover = target.GetComponent<StepMover2D>();
+            if (stepMover != null)
+            {
+                stepMover.OnStruck();
+
+                // OnStruck may have destroyed the target
+                if (target == null)
+                {
+                    StopStrikeObject();
+                }
+            }
         }
 
         private void MoveStruckObject()
@@ -1374,6 +1446,7 @@ namespace Ciga.Demo
             }
 
             PlaySound(strikeAimStartClip);
+            CreateAnchorIndicator();
             UpdateStrikeAim();
         }
 
@@ -1403,12 +1476,14 @@ namespace Ciga.Demo
                 aimedStrikePoint = hit.point;
                 ApplyGrappleHighlight(aimedStrikeTarget);
                 UpdateGrappleAimRay(origin, aimedStrikePoint);
+                UpdateAnchorIndicator(aimedStrikePoint, direction);
                 return;
             }
 
             aimedStrikeTarget = null;
             ClearGrappleHighlight();
             UpdateGrappleAimRay(origin, origin + direction * strikeAimRadius);
+            UpdateAnchorIndicator(origin + direction * strikeAimRadius, direction);
         }
 
         private void ReleaseStrikeAim()
@@ -1462,6 +1537,8 @@ namespace Ciga.Demo
             {
                 grappleAimRayLine.enabled = false;
             }
+
+            DestroyAnchorIndicator();
         }
 
         private void ResolveGrappleContact(Collider2D target, bool fromLeft, bool fromAbove, Vector2 landingPoint)

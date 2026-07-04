@@ -38,12 +38,27 @@ namespace Ciga.Demo
         [SerializeField] private bool carryEnemies = true;
         [SerializeField] private float passengerCheckHeight = 0.65f;
 
+        [Header("Breakable")]
+        [Tooltip("How many times this step must be struck before breaking. 0 = never breaks.")]
+        [SerializeField] private int maxStrikeCount = 3;
+        [Tooltip("Optional prefab (particles, debris) spawned at this object's position on break.")]
+        [SerializeField] private GameObject breakEffect;
+        [SerializeField] private AudioClip breakClip;
+
+        [Header("Bounce")]
+        [Tooltip("When enabled, this block reverses direction on hitting DemoGround.")]
+        [SerializeField] private bool bounceOnGround = true;
+        [SerializeField] private float bounceCheckDistance = 0.05f;
+        [SerializeField] private string groundBounceTag = "DemoGround";
+
         private Collider2D bodyCollider;
+        private int currentStrikeCount;
         private Rigidbody2D body;
         private int currentStepIndex;
         private float currentStepElapsed;
         private bool movementPlanCompleted;
         private bool externalMovementLocked;
+        private Vector2 bounceDirection;
 
         private void Awake()
         {
@@ -74,6 +89,37 @@ namespace Ciga.Demo
             }
 
             UpdateMovementPlan();
+        }
+
+        /// <summary>Called when a player or boss strikes (launches) this step.</summary>
+        public void OnStruck()
+        {
+            if (maxStrikeCount <= 0) return;
+
+            currentStrikeCount++;
+            if (currentStrikeCount >= maxStrikeCount)
+            {
+                Break();
+            }
+        }
+
+        private void Break()
+        {
+            if (breakEffect != null)
+            {
+                Instantiate(breakEffect, transform.position, Quaternion.identity);
+            }
+
+            if (breakClip != null)
+            {
+                AudioManager2D manager = AudioManager2D.Instance;
+                if (manager != null)
+                {
+                    manager.PlayOneShotAt(breakClip, transform.position);
+                }
+            }
+
+            Destroy(gameObject);
         }
 
         public void BeginExternalMovement()
@@ -143,7 +189,63 @@ namespace Ciga.Demo
                 return;
             }
 
-            Vector2 movement = direction.normalized * (moveSpeed * speedMultiplier * Time.fixedDeltaTime);
+            Vector2 normalizedDir = direction.normalized;
+
+            // Use cached bounce direction if active (set after a bounce)
+            if (bounceDirection.sqrMagnitude > 0.0001f)
+            {
+                normalizedDir = bounceDirection.normalized;
+            }
+            else
+            {
+                bounceDirection = normalizedDir;
+            }
+
+            Vector2 movement = normalizedDir * (moveSpeed * speedMultiplier * Time.fixedDeltaTime);
+
+            // Check for DemoGround ahead — if hit, reverse
+            if (bounceOnGround && bodyCollider != null)
+            {
+                Bounds bounds = bodyCollider.bounds;
+                float checkDistance = movement.magnitude + bounceCheckDistance;
+                Vector2 checkSize = new Vector2(
+                    Mathf.Max(0.02f, bounds.size.x * 0.8f),
+                    Mathf.Max(0.02f, bounds.size.y * 0.8f));
+
+                // Cast in both horizontal and vertical directions
+                bool bounced = false;
+                if (Mathf.Abs(movement.x) > 0.0001f)
+                {
+                    Vector2 checkOrigin = new Vector2(
+                        movement.x > 0 ? bounds.max.x : bounds.min.x,
+                        bounds.center.y);
+                    RaycastHit2D hit = Physics2D.BoxCast(
+                        checkOrigin, checkSize, 0f,
+                        new Vector2(Mathf.Sign(movement.x), 0f), checkDistance);
+                    if (hit.collider != null && hit.collider.CompareTag(groundBounceTag))
+                    {
+                        bounceDirection = new Vector2(-bounceDirection.x, bounceDirection.y);
+                        movement.x = -movement.x;
+                        bounced = true;
+                    }
+                }
+
+                if (!bounced && Mathf.Abs(movement.y) > 0.0001f)
+                {
+                    Vector2 checkOrigin = new Vector2(
+                        bounds.center.x,
+                        movement.y > 0 ? bounds.max.y : bounds.min.y);
+                    RaycastHit2D hit = Physics2D.BoxCast(
+                        checkOrigin, checkSize, 0f,
+                        new Vector2(0f, Mathf.Sign(movement.y)), checkDistance);
+                    if (hit.collider != null && hit.collider.CompareTag(groundBounceTag))
+                    {
+                        bounceDirection = new Vector2(bounceDirection.x, -bounceDirection.y);
+                        movement.y = -movement.y;
+                    }
+                }
+            }
+
             MovePassengers(movement);
             body.MovePosition(body.position + movement);
         }
