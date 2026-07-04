@@ -10,6 +10,7 @@ namespace Ciga.Demo
     {
         private const string GroundTag = "DemoGround";
         private const string GrappleWallTag = "GrappleWall";
+        private const string EnemyTag = "Enemy";
         private const float PulledObjectSkinWidth = 0.01f;
 
         [Header("Movement")]
@@ -24,6 +25,9 @@ namespace Ciga.Demo
         [Tooltip("Multiplier applied to gravity while sliding down a wall. Lower values fall more slowly.")]
         [SerializeField, Range(0.05f, 1f)] private float wallSlideFallSpeedMultiplier = 0.35f;
         [SerializeField] private float attackComboResetTime = 1f;
+        [Header("Combat")]
+        [SerializeField] private Vector2 attackHitOffset = new Vector2(0.75f, 0.55f);
+        [SerializeField] private Vector2 attackHitSize = new Vector2(1.2f, 1f);
         [Header("Grapple")]
         [SerializeField] private float grappleAimRadius = 5f;
         [SerializeField, Range(0.01f, 1f)] private float grappleAimMoveSpeedMultiplier = 0.15f;
@@ -88,6 +92,7 @@ namespace Ciga.Demo
         private bool isRunBlockedAhead;
         private int currentAttack;
         private readonly RaycastHit2D[] pulledObjectCastResults = new RaycastHit2D[16];
+        private readonly Collider2D[] attackOverlapResults = new Collider2D[12];
         private readonly Collider2D[] pulledObjectOverlapResults = new Collider2D[16];
         private readonly List<Collider2D> initialPulledObjectOverlaps = new List<Collider2D>();
         private readonly List<Collider2D> initialStruckObjectOverlaps = new List<Collider2D>();
@@ -314,6 +319,34 @@ namespace Ciga.Demo
             animator.SetTrigger(AttackHashes[currentAttack]);
             currentAttack = (currentAttack + 1) % AttackHashes.Length;
             timeSinceAttack = 0f;
+            HitEnemiesInAttackRange();
+        }
+
+        private void HitEnemiesInAttackRange()
+        {
+            float facing = spriteRenderer != null && spriteRenderer.flipX ? -1f : 1f;
+            Vector2 center = (Vector2)transform.position + new Vector2(attackHitOffset.x * facing, attackHitOffset.y);
+            int hitCount = Physics2D.OverlapBoxNonAlloc(center, attackHitSize, 0f, attackOverlapResults);
+
+            for (int i = 0; i < hitCount; i++)
+            {
+                Collider2D hit = attackOverlapResults[i];
+                if (hit == null || !hit.CompareTag(EnemyTag))
+                {
+                    continue;
+                }
+
+                Enemy2D enemy = hit.GetComponent<Enemy2D>();
+                if (enemy == null)
+                {
+                    enemy = hit.GetComponentInParent<Enemy2D>();
+                }
+
+                if (enemy != null)
+                {
+                    enemy.Defeat();
+                }
+            }
         }
 
         public void Kill()
@@ -1438,6 +1471,8 @@ namespace Ciga.Demo
 
             wallCheckDistance = Mathf.Max(0.01f, wallCheckDistance);
             wallSlideFallSpeedMultiplier = Mathf.Clamp(wallSlideFallSpeedMultiplier, 0.05f, 1f);
+            attackHitSize.x = Mathf.Max(0.1f, attackHitSize.x);
+            attackHitSize.y = Mathf.Max(0.1f, attackHitSize.y);
             grappleAimRadius = Mathf.Max(0.1f, grappleAimRadius);
             grappleAimMoveSpeedMultiplier = Mathf.Clamp(grappleAimMoveSpeedMultiplier, 0.01f, 1f);
             grappleObjectPullSpeed = Mathf.Max(0.1f, grappleObjectPullSpeed);

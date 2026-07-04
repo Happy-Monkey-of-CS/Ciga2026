@@ -9,6 +9,20 @@ using RuntimeAnimatorController = UnityEngine.RuntimeAnimatorController;
 
 public static class DemoSceneBuilder
 {
+    private readonly struct EnemyMovementStepConfig
+    {
+        public readonly Enemy2D.EnemyMovementAction Action;
+        public readonly float Duration;
+        public readonly float SpeedMultiplier;
+
+        public EnemyMovementStepConfig(Enemy2D.EnemyMovementAction action, float duration, float speedMultiplier = 1f)
+        {
+            Action = action;
+            Duration = duration;
+            SpeedMultiplier = speedMultiplier;
+        }
+    }
+
     private const string ScenePath = "Assets/Scenes/demo.unity";
     private const string NoFrictionMaterialPath = "Assets/Demo/NoFriction2D.physicsMaterial2D";
     private const string GrappleRopeTexturePath = "Assets/Demo/GrappleRopeTexture.asset";
@@ -16,6 +30,7 @@ public static class DemoSceneBuilder
     private const string StepPrefabPath = "Assets/Prefabs/Step.prefab";
     private const string TallWallPrefabPath = "Assets/Prefabs/TallWall.prefab";
     private const string TrapPrefabPath = "Assets/Prefabs/Trap.prefab";
+    private const string EnemyPrefabPath = "Assets/Prefabs/Enemy.prefab";
     private const string HeroKnightSpritePath = "Assets/Hero Knight - Pixel Art/Sprites/HeroKnight.png";
     private const long HeroKnightHurtAimSpriteLocalId = 21300090;
     private const long HeroKnightAttackAimSpriteLocalId = 21300036;
@@ -26,6 +41,7 @@ public static class DemoSceneBuilder
     private const string StepTag = "GrappleStep";
     private const string WallTag = "GrappleWall";
     private const string TrapTag = "Trap";
+    private const string EnemyTag = "Enemy";
     private const float DefaultPlayerAutoRunSpeed = 4f;
     private const float DefaultWrapLeftX = -9.5f;
     private const float DefaultWrapRightX = 21f;
@@ -68,6 +84,8 @@ public static class DemoSceneBuilder
         platforms.transform.SetParent(world.transform);
         GameObject traps = new GameObject("Traps");
         traps.transform.SetParent(world.transform);
+        GameObject enemies = new GameObject("Enemies");
+        enemies.transform.SetParent(world.transform);
 
         Material spriteMaterial = new Material(Shader.Find("Sprites/Default"));
         Sprite whiteSprite = CreateSprite("Assets/Demo/WhitePixelTexture.asset");
@@ -84,6 +102,23 @@ public static class DemoSceneBuilder
         CreatePrefabInstance(TrapPrefabPath, "Trap_01", new Vector2(-1.2f, -1.85f), new Vector2(0.9f, 0.55f), new Color(0.95f, 0.08f, 0.06f), traps.transform);
         CreatePrefabInstance(TrapPrefabPath, "Trap_02", new Vector2(7.2f, -2f), new Vector2(1.2f, 0.45f), new Color(0.95f, 0.08f, 0.06f), traps.transform);
         CreatePrefabInstance(TrapPrefabPath, "Trap_03", new Vector2(12.1f, -1.86f), new Vector2(1.4f, 0.55f), new Color(0.95f, 0.08f, 0.06f), traps.transform);
+        GameObject enemyGround = CreatePrefabInstance(EnemyPrefabPath, "Enemy_Ground_01", new Vector2(2.2f, -1.425f), new Vector2(0.75f, 0.95f), new Color(0.55f, 0.12f, 0.82f), enemies.transform);
+        ConfigureEnemyMovement(enemyGround, 0.9f,
+            new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.MoveLeftForDuration, 2f),
+            new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.StopForDuration, 2f),
+            new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.MoveLeftForDuration, 1f),
+            new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.MoveRightForDuration, 2f));
+        GameObject enemyStepOne = CreatePrefabInstance(EnemyPrefabPath, "Enemy_Step_01", new Vector2(5.2f, -0.1f), new Vector2(0.75f, 0.95f), new Color(0.55f, 0.12f, 0.82f), enemies.transform);
+        ConfigureEnemyMovement(enemyStepOne, 0.75f,
+            new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.MoveLeftUntilEdge, 0f),
+            new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.StopForDuration, 1f),
+            new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.MoveRightUntilEdge, 0f),
+            new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.StopForDuration, 1f));
+        GameObject enemyStepTwo = CreatePrefabInstance(EnemyPrefabPath, "Enemy_Step_02", new Vector2(9.2f, 1.2f), new Vector2(0.75f, 0.95f), new Color(0.55f, 0.12f, 0.82f), enemies.transform);
+        ConfigureEnemyMovement(enemyStepTwo, 1.1f,
+            new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.MoveRightForDuration, 1.5f),
+            new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.StopForDuration, 0.75f),
+            new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.MoveLeftUntilEdge, 0f));
 
         GameObject player = CreatePlayer(whiteSprite, noFrictionMaterial, grappleRopeMaterial);
         GameObject cameraObject = CreateCamera(player.transform);
@@ -156,6 +191,7 @@ public static class DemoSceneBuilder
         AddTagIfMissing(StepTag);
         AddTagIfMissing(WallTag);
         AddTagIfMissing(TrapTag);
+        AddTagIfMissing(EnemyTag);
     }
 
     private static void AddTagIfMissing(string tag)
@@ -268,6 +304,7 @@ public static class DemoSceneBuilder
         CreatePlatformPrefab(StepPrefabPath, "Step", StepTag, new Color(0.32f, 0.62f, 0.32f), sprite, material);
         CreatePlatformPrefab(TallWallPrefabPath, "TallWall", WallTag, new Color(0.42f, 0.45f, 0.48f), sprite, material);
         CreateTrapPrefab(sprite);
+        CreateEnemyPrefab(sprite);
         AssetDatabase.SaveAssets();
     }
 
@@ -298,6 +335,31 @@ public static class DemoSceneBuilder
         template.AddComponent<TrapDeathZone2D>();
 
         PrefabUtility.SaveAsPrefabAsset(template, TrapPrefabPath);
+        Object.DestroyImmediate(template);
+    }
+
+    private static void CreateEnemyPrefab(Sprite sprite)
+    {
+        GameObject template = CreateSpriteObject("Enemy", sprite, Vector2.zero, Vector2.one, new Color(0.55f, 0.12f, 0.82f));
+        template.tag = EnemyTag;
+        template.GetComponent<SpriteRenderer>().sortingOrder = 3;
+
+        BoxCollider2D collider = template.AddComponent<BoxCollider2D>();
+        collider.size = Vector2.one;
+        collider.isTrigger = true;
+        Enemy2D enemy = template.AddComponent<Enemy2D>();
+        SerializedObject serializedEnemy = new SerializedObject(enemy);
+        serializedEnemy.FindProperty("moveSpeed").floatValue = 1f;
+        serializedEnemy.FindProperty("loopMovementPlan").boolValue = true;
+        serializedEnemy.FindProperty("groundMask").FindPropertyRelative("m_Bits").intValue = 1 << GroundLayer;
+        SerializedProperty plan = serializedEnemy.FindProperty("movementPlan");
+        plan.arraySize = 3;
+        SetEnemyMovementStep(plan.GetArrayElementAtIndex(0), Enemy2D.EnemyMovementAction.MoveLeftUntilEdge, 0f, 1f);
+        SetEnemyMovementStep(plan.GetArrayElementAtIndex(1), Enemy2D.EnemyMovementAction.StopForDuration, 1f, 1f);
+        SetEnemyMovementStep(plan.GetArrayElementAtIndex(2), Enemy2D.EnemyMovementAction.MoveRightUntilEdge, 0f, 1f);
+        serializedEnemy.ApplyModifiedPropertiesWithoutUndo();
+
+        PrefabUtility.SaveAsPrefabAsset(template, EnemyPrefabPath);
         Object.DestroyImmediate(template);
     }
 
@@ -360,6 +422,44 @@ public static class DemoSceneBuilder
         return instance;
     }
 
+    private static void ConfigureEnemyMovement(GameObject enemyObject, float moveSpeed, params EnemyMovementStepConfig[] steps)
+    {
+        if (enemyObject == null)
+        {
+            return;
+        }
+
+        Enemy2D enemy = enemyObject.GetComponent<Enemy2D>();
+        if (enemy == null)
+        {
+            return;
+        }
+
+        SerializedObject serializedEnemy = new SerializedObject(enemy);
+        serializedEnemy.FindProperty("moveSpeed").floatValue = moveSpeed;
+        serializedEnemy.FindProperty("loopMovementPlan").boolValue = true;
+        serializedEnemy.FindProperty("groundMask").FindPropertyRelative("m_Bits").intValue = 1 << GroundLayer;
+        serializedEnemy.FindProperty("edgeCheckForwardOffset").floatValue = 0.08f;
+        serializedEnemy.FindProperty("edgeCheckDistance").floatValue = 0.35f;
+
+        SerializedProperty plan = serializedEnemy.FindProperty("movementPlan");
+        plan.arraySize = steps.Length;
+        for (int i = 0; i < steps.Length; i++)
+        {
+            SerializedProperty step = plan.GetArrayElementAtIndex(i);
+            SetEnemyMovementStep(step, steps[i].Action, steps[i].Duration, steps[i].SpeedMultiplier);
+        }
+
+        serializedEnemy.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private static void SetEnemyMovementStep(SerializedProperty step, Enemy2D.EnemyMovementAction action, float duration, float speedMultiplier)
+    {
+        step.FindPropertyRelative("action").enumValueIndex = (int)action;
+        step.FindPropertyRelative("duration").floatValue = duration;
+        step.FindPropertyRelative("speedMultiplier").floatValue = speedMultiplier;
+    }
+
     private static GameObject CreatePlayer(Sprite sprite, PhysicsMaterial2D material, Material grappleRopeMaterial)
     {
         GameObject player = new GameObject("Player");
@@ -407,6 +507,8 @@ public static class DemoSceneBuilder
         SerializedObject serializedController = new SerializedObject(controller);
         serializedController.FindProperty("autoRunSpeed").floatValue = DefaultPlayerAutoRunSpeed;
         serializedController.FindProperty("jumpForce").floatValue = 14f;
+        serializedController.FindProperty("attackHitOffset").vector2Value = new Vector2(0.75f, 0.55f);
+        serializedController.FindProperty("attackHitSize").vector2Value = new Vector2(1.2f, 1f);
         serializedController.FindProperty("wrapAtMapEdges").boolValue = true;
         serializedController.FindProperty("wrapLeftX").floatValue = DefaultWrapLeftX;
         serializedController.FindProperty("wrapRightX").floatValue = DefaultWrapRightX;
