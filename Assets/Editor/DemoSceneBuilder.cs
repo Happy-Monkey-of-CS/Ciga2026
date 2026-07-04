@@ -149,7 +149,6 @@ public static class DemoSceneBuilder
         GameObject cameraObject = CreateCamera(player.transform);
 
         CreateSun(whiteSprite, world.transform);
-        CreateVoidZones(world.transform);
         CreateInstructions();
         CreateCollectibleHUD();
 
@@ -803,31 +802,6 @@ public static class DemoSceneBuilder
         GameObject sun = CreateSpriteObject("Sun", sprite, new Vector2(-7f, 3.3f), new Vector2(1.1f, 1.1f), new Color(1f, 0.86f, 0.28f));
         sun.transform.SetParent(parent);
         sun.GetComponent<SpriteRenderer>().sortingOrder = -5;
-    }
-
-    private static void CreateVoidZones(Transform parent)
-    {
-        GameObject voidContainer = new GameObject("Void Zones");
-        voidContainer.transform.SetParent(parent);
-
-        // Bottom void zone — catches player falling off the map
-        CreateVoidZone("Void Bottom", new Vector2(4f, -7f), new Vector2(50f, 3f), voidContainer.transform);
-
-        // Left void zone — catches player falling behind the scrolling view
-        CreateVoidZone("Void Left", new Vector2(-14f, 0f), new Vector2(3f, 30f), voidContainer.transform);
-    }
-
-    private static void CreateVoidZone(string name, Vector2 position, Vector2 size, Transform parent)
-    {
-        GameObject voidZone = new GameObject(name);
-        voidZone.transform.SetParent(parent);
-        voidZone.transform.position = new Vector3(position.x, position.y, 0f);
-
-        BoxCollider2D collider = voidZone.AddComponent<BoxCollider2D>();
-        collider.isTrigger = true;
-        collider.size = size;
-
-        voidZone.AddComponent<VoidZone2D>();
     }
 
     private static void CreateInstructions()

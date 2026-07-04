@@ -143,10 +143,6 @@ namespace Ciga.Demo
         private Vector2 movingStepCarryThisFrame;
         private int currentAttack;
 
-        // safe position tracking for void teleport
-        private Vector2 lastSafePosition;
-        private bool hasSafePosition;
-
         // audio state tracking
         private bool wasGrounded;
         private bool wasWallSliding;
@@ -199,8 +195,6 @@ namespace Ciga.Demo
             grappleLine = GetComponent<LineRenderer>();
             body.freezeRotation = true;
             defaultGravityScale = body.gravityScale;
-            lastSafePosition = body.position;
-            hasSafePosition = true;
             if (animator != null)
             {
                 defaultAnimatorSpeed = animator.speed;
@@ -400,7 +394,6 @@ namespace Ciga.Demo
             WrapAtMapEdges();
             UpdateAudioLoops();
             UpdateAudioStateTracking();
-            UpdateSafePosition();
             jumpRequested = false;
         }
 
@@ -724,39 +717,6 @@ namespace Ciga.Demo
             isForcedWallSliding = false;
             isWallJumpControlling = false;
             UpdateAudioLoops();
-        }
-
-        /// <summary>
-        /// Teleport the player back to the last recorded safe position.
-        /// Returns false if no safe position has been recorded yet.
-        /// </summary>
-        public bool TeleportToLastSafePosition()
-        {
-            if (!hasSafePosition || isDead)
-            {
-                return false;
-            }
-
-            OnTeleported();
-            body.position = lastSafePosition;
-            body.velocity = Vector2.zero;
-            Physics2D.SyncTransforms();
-            return true;
-        }
-
-        private void UpdateSafePosition()
-        {
-            if (isDead)
-            {
-                return;
-            }
-
-            // Only record position when grounded and not in special states
-            if (isGrounded && !isClimbing && !isGrappling && !isPullingGrappleObject && !isStrikingObject)
-            {
-                lastSafePosition = body.position;
-                hasSafePosition = true;
-            }
         }
 
         // Called by the Hero Knight wall-slide animation event.
