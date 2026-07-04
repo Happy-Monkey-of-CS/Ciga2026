@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Ciga.Demo
@@ -56,7 +55,6 @@ namespace Ciga.Demo
         [SerializeField] private float maxHealth = 100f;
         [SerializeField] private float playerAttackDamage = 20f;
         [SerializeField] private float struckStepDamage = 35f;
-        [SerializeField] private float trapDamage = 35f;
         [SerializeField] private float hitFlashDuration = 0.12f;
         [SerializeField] private float deathDestroyDelay = 1.2f;
 
@@ -86,7 +84,6 @@ namespace Ciga.Demo
         private readonly RaycastHit2D[] objectCastResults = new RaycastHit2D[12];
         private readonly Collider2D[] targetOverlapResults = new Collider2D[24];
         private readonly Collider2D[] ignoredGrappleStepColliders = new Collider2D[96];
-        private readonly HashSet<int> damagingTrapIds = new HashSet<int>();
 
         private Rigidbody2D body;
         private Collider2D bodyCollider;
@@ -936,7 +933,6 @@ namespace Ciga.Demo
 
         public float PlayerAttackDamage => playerAttackDamage;
         public float StruckStepDamage => struckStepDamage;
-        public float TrapDamage => trapDamage;
 
         public void TakePlayerAttackDamage()
         {
@@ -946,23 +942,6 @@ namespace Ciga.Demo
         public void TakeStruckStepDamage()
         {
             TakeDamage(struckStepDamage);
-        }
-
-        public void TakeTrapDamageFrom(Collider2D trap)
-        {
-            if (trap == null)
-            {
-                return;
-            }
-
-            int trapId = trap.GetInstanceID();
-            if (damagingTrapIds.Contains(trapId))
-            {
-                return;
-            }
-
-            damagingTrapIds.Add(trapId);
-            TakeDamage(trapDamage);
         }
 
         public void TakeDamage(float damage)
@@ -1115,7 +1094,6 @@ namespace Ciga.Demo
             maxHealth = Mathf.Max(1f, maxHealth);
             playerAttackDamage = Mathf.Max(0f, playerAttackDamage);
             struckStepDamage = Mathf.Max(0f, struckStepDamage);
-            trapDamage = Mathf.Max(0f, trapDamage);
             hitFlashDuration = Mathf.Max(0f, hitFlashDuration);
             deathDestroyDelay = Mathf.Max(0f, deathDestroyDelay);
             grappleRange = Mathf.Max(0.1f, grappleRange);

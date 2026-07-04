@@ -179,10 +179,7 @@ MonoBehaviour:
     speedMultiplier: 1
   carryPlayer: 1
   carryEnemies: 1
-  passengerCheckHeight: 0.65
-  maxStrikeCount: 3
-  breakEffect: {fileID: 0}
-  breakClip: {fileID: 0}
-  bounceOnGround: 1
-  bounceCheckDistance: 0.05
-  groundBounceTag: DemoGround
+  passengerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  passengerCheckHeight: 0.2

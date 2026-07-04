@@ -45,19 +45,6 @@ namespace Ciga.Demo
             {
                 TriggerTrap();
                 enemy.Defeat();
-                return;
-            }
-
-            BossController2D boss = other.GetComponent<BossController2D>();
-            if (boss == null)
-            {
-                boss = other.GetComponentInParent<BossController2D>();
-            }
-
-            if (boss != null)
-            {
-                TriggerTrap();
-                boss.TakeTrapDamageFrom(GetComponent<Collider2D>());
             }
         }
 

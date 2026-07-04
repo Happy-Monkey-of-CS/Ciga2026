@@ -104,7 +104,7 @@ public static class DemoSceneBuilder
         Material spriteMaterial = new Material(Shader.Find("Sprites/Default"));
         Sprite whiteSprite = CreateSprite("Assets/Demo/WhitePixelTexture.asset");
         PhysicsMaterial2D noFrictionMaterial = CreateNoFrictionMaterial();
-        Material grappleRopeMaterial = MermaidPlayerAnimationBuilder.CreateChainMaterial(GrappleRopeMaterialPath);
+        Material grappleRopeMaterial = CreateGrappleRopeMaterial();
         EnsureDemoPrefabs(whiteSprite, noFrictionMaterial);
 
         CreateBackground(whiteSprite, world.transform);
@@ -426,11 +426,7 @@ public static class DemoSceneBuilder
             SerializedObject serializedMover = new SerializedObject(mover);
             serializedMover.FindProperty("moveSpeed").floatValue = 0f;
             serializedMover.FindProperty("loopMovementPlan").boolValue = true;
-            SerializedProperty passengerMask = serializedMover.FindProperty("passengerMask");
-            if (passengerMask != null)
-            {
-                passengerMask.FindPropertyRelative("m_Bits").intValue = ~0;
-            }
+            serializedMover.FindProperty("passengerMask").FindPropertyRelative("m_Bits").intValue = ~0;
             SerializedProperty plan = serializedMover.FindProperty("movementPlan");
             plan.arraySize = 1;
             SetStepMovementStep(plan.GetArrayElementAtIndex(0), StepMover2D.StepMovementAction.StopForDuration, 1f, 1f);
@@ -633,11 +629,7 @@ public static class DemoSceneBuilder
         SerializedObject serializedMover = new SerializedObject(mover);
         serializedMover.FindProperty("moveSpeed").floatValue = moveSpeed;
         serializedMover.FindProperty("loopMovementPlan").boolValue = true;
-        SerializedProperty passengerMask = serializedMover.FindProperty("passengerMask");
-        if (passengerMask != null)
-        {
-            passengerMask.FindPropertyRelative("m_Bits").intValue = ~0;
-        }
+        serializedMover.FindProperty("passengerMask").FindPropertyRelative("m_Bits").intValue = ~0;
 
         SerializedProperty plan = serializedMover.FindProperty("movementPlan");
         plan.arraySize = steps.Length;
@@ -671,12 +663,7 @@ public static class DemoSceneBuilder
         player.transform.position = new Vector3(-7f, -1.28f, 0f);
 
         SpriteRenderer renderer = player.AddComponent<SpriteRenderer>();
-        RuntimeAnimatorController mermaidController = MermaidPlayerAnimationBuilder.CreateOrUpdateController();
-        Sprite previewSprite = MermaidPlayerAnimationBuilder.LoadSprite("Idle_1");
-        if (previewSprite == null)
-        {
-            previewSprite = LoadHeroKnightPreviewSprite(sprite);
-        }
+        Sprite previewSprite = LoadHeroKnightPreviewSprite(sprite);
         renderer.sprite = previewSprite;
         renderer.color = Color.white;
         renderer.sortingOrder = 10;
@@ -684,9 +671,7 @@ public static class DemoSceneBuilder
         player.transform.localScale = Vector3.one;
 
         Animator animator = player.AddComponent<Animator>();
-        animator.runtimeAnimatorController = mermaidController != null
-            ? mermaidController
-            : AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(HeroKnightControllerPath);
+        animator.runtimeAnimatorController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(HeroKnightControllerPath);
         animator.applyRootMotion = false;
 
         Rigidbody2D body = player.AddComponent<Rigidbody2D>();
@@ -726,10 +711,10 @@ public static class DemoSceneBuilder
         serializedController.FindProperty("wallSlideFallSpeedMultiplier").floatValue = 0.35f;
         serializedController.FindProperty("grappleAimRadius").floatValue = 5f;
         serializedController.FindProperty("grappleAimMoveSpeedMultiplier").floatValue = 0.15f;
-        serializedController.FindProperty("grappleAimSprite").objectReferenceValue = previewSprite;
+        serializedController.FindProperty("grappleAimSprite").objectReferenceValue = LoadHeroKnightAimSprite(previewSprite);
         serializedController.FindProperty("strikeAimRadius").floatValue = 2f;
         serializedController.FindProperty("strikeObjectSpeed").floatValue = 12f;
-        serializedController.FindProperty("strikeAimSprite").objectReferenceValue = previewSprite;
+        serializedController.FindProperty("strikeAimSprite").objectReferenceValue = LoadHeroKnightStrikeAimSprite(previewSprite);
         serializedController.FindProperty("groundNormalThreshold").floatValue = 0.65f;
         serializedController.FindProperty("grapplePullSpeed").floatValue = 14f;
         serializedController.FindProperty("grappleStopDistance").floatValue = 0.65f;

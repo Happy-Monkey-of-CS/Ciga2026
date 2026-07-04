@@ -51,16 +51,6 @@ namespace Ciga.Demo
         [SerializeField] private Color grappleAimRayColor = new Color(0.35f, 0.85f, 1f, 0.9f);
         [SerializeField] private Color grappleHighlightColor = new Color(1f, 0.9f, 0.2f, 1f);
         [SerializeField] private Sprite grappleAimSprite;
-        [Tooltip("Optional material used by the aim preview line. Assign the Mermaid chain material to preview the real chain while aiming.")]
-        [SerializeField] private Material grappleAimRayMaterial;
-        [Tooltip("Sprite image used to build the rope visually. Mermaid/Chain.png should be assigned here.")]
-        [SerializeField] private Sprite grappleRopeSprite;
-        [Tooltip("Width used by the chain during aim preview and after the grapple is fired.")]
-        [SerializeField, Min(0.001f)] private float grappleRopeWidth = 0.12f;
-        [Tooltip("World-space length of each repeated rope image segment.")]
-        [SerializeField, Min(0.01f)] private float grappleRopeSegmentLength = 0.18f;
-        [Tooltip("Local offset from the player's collider center where the rope starts. X follows facing direction; Y moves the origin up/down.")]
-        [SerializeField] private Vector2 grappleOriginOffset = new Vector2(0.15f, -0.35f);
         [Header("Strike")]
         [SerializeField] private float strikeAimRadius = 2f;
         [SerializeField] private float strikeObjectSpeed = 12f;
@@ -159,8 +149,6 @@ namespace Ciga.Demo
         private bool grapplePullLoopActive;
         private bool grappleObjectLoopActive;
         private bool strikeObjectLoopActive;
-        private Transform grappleAimRopeRoot;
-        private Transform grappleActiveRopeRoot;
 
         private readonly RaycastHit2D[] pulledObjectCastResults = new RaycastHit2D[16];
         private readonly Collider2D[] attackOverlapResults = new Collider2D[12];
@@ -169,8 +157,6 @@ namespace Ciga.Demo
         private readonly List<Collider2D> initialPulledObjectOverlaps = new List<Collider2D>();
         private readonly List<Collider2D> initialStruckObjectOverlaps = new List<Collider2D>();
         private readonly List<Enemy2D> carriedEnemiesOnStruckStep = new List<Enemy2D>();
-        private readonly List<SpriteRenderer> grappleAimRopeSegments = new List<SpriteRenderer>();
-        private readonly List<SpriteRenderer> grappleActiveRopeSegments = new List<SpriteRenderer>();
 
         private static readonly int AnimStateHash = Animator.StringToHash("AnimState");
         private static readonly int GroundedHash = Animator.StringToHash("Grounded");
@@ -181,8 +167,6 @@ namespace Ciga.Demo
         private static readonly int DeathHash = Animator.StringToHash("Death");
         private static readonly int DeathStateHash = Animator.StringToHash("Death");
         private static readonly int NoBloodHash = Animator.StringToHash("noBlood");
-        private static readonly int PullObjectHash = Animator.StringToHash("PullObject");
-        private static readonly int PreviewModeHash = Animator.StringToHash("PreviewMode");
         private static readonly int[] AttackHashes =
         {
             Animator.StringToHash("Attack1"),
@@ -204,14 +188,12 @@ namespace Ciga.Demo
             if (animator != null)
             {
                 defaultAnimatorSpeed = animator.speed;
-                animator.SetBool(PreviewModeHash, false);
             }
 
             if (grappleLine != null)
             {
                 grappleLine.positionCount = 2;
                 grappleLine.enabled = false;
-                ApplyGrappleRopeWidth();
             }
 
             CreateGrappleAimLines();
@@ -761,9 +743,7 @@ namespace Ciga.Demo
             }
 
             animator.SetBool(GroundedHash, isGrounded);
-            animator.SetBool(PreviewModeHash, false);
             animator.SetBool(WallSlideHash, isWallSliding);
-            animator.SetBool(PullObjectHash, isPullingGrappleObject);
             animator.SetFloat(AirSpeedYHash, body.velocity.y);
             animator.SetInteger(AnimStateHash, ShouldPlayRunAnimation() ? 1 : 0);
             UpdateWallSlideFacing();
@@ -899,10 +879,8 @@ namespace Ciga.Demo
 
             if (grappleAimRayLine != null)
             {
-                grappleAimRayLine.enabled = grappleRopeSprite == null;
+                grappleAimRayLine.enabled = true;
             }
-
-            SetRopeSegmentsActive(grappleAimRopeSegments, false);
 
             PlaySound(grappleAimStartClip);
             CreateAnchorIndicator();
@@ -995,7 +973,6 @@ namespace Ciga.Demo
                 grappleAimRayLine.enabled = false;
             }
 
-            SetRopeSegmentsActive(grappleAimRopeSegments, false);
             DestroyAnchorIndicator();
         }
 
@@ -1066,7 +1043,7 @@ namespace Ciga.Demo
 
             if (grappleLine != null)
             {
-                grappleLine.enabled = grappleRopeSprite == null;
+                grappleLine.enabled = true;
             }
         }
 
@@ -1087,7 +1064,7 @@ namespace Ciga.Demo
 
             if (grappleLine != null)
             {
-                grappleLine.enabled = grappleRopeSprite == null;
+                grappleLine.enabled = true;
             }
 
             // Notify step it's been pulled (for breakable steps)
@@ -1295,18 +1272,6 @@ namespace Ciga.Demo
 
         private void UpdateGrappleAimRay(Vector2 origin, Vector2 end)
         {
-            if (grappleRopeSprite != null)
-            {
-                if (grappleAimRayLine != null)
-                {
-                    grappleAimRayLine.enabled = false;
-                }
-
-                UpdateRopeImageLine(origin, end, grappleAimRopeSegments, ref grappleAimRopeRoot, "Grapple Aim Chain", 19);
-                return;
-            }
-
-            SetRopeSegmentsActive(grappleAimRopeSegments, false);
             if (grappleAimRayLine == null)
             {
                 return;
@@ -1343,26 +1308,8 @@ namespace Ciga.Demo
         private void CreateGrappleAimLines()
         {
             Material lineMaterial = new Material(Shader.Find("Sprites/Default"));
-            Material rayMaterial = grappleAimRayMaterial != null ? grappleAimRayMaterial : lineMaterial;
             grappleAimCircleLine = CreateGrappleGuideLine("Grapple Aim Radius", lineMaterial, 0.035f, grappleAimCircleColor, true);
-            grappleAimRayLine = CreateGrappleGuideLine("Grapple Aim Ray", rayMaterial, grappleRopeWidth, Color.white, false);
-            grappleAimRayLine.textureMode = LineTextureMode.Tile;
-        }
-
-        private void ApplyGrappleRopeWidth()
-        {
-            float width = Mathf.Max(0.001f, grappleRopeWidth);
-            if (grappleLine != null)
-            {
-                grappleLine.startWidth = width;
-                grappleLine.endWidth = width;
-            }
-
-            if (grappleAimRayLine != null)
-            {
-                grappleAimRayLine.startWidth = width;
-                grappleAimRayLine.endWidth = width;
-            }
+            grappleAimRayLine = CreateGrappleGuideLine("Grapple Aim Ray", lineMaterial, 0.04f, grappleAimRayColor, false);
         }
 
         private LineRenderer CreateGrappleGuideLine(string name, Material material, float width, Color color, bool loop)
@@ -1384,83 +1331,6 @@ namespace Ciga.Demo
             line.startColor = color;
             line.endColor = color;
             return line;
-        }
-
-        private void UpdateRopeImageLine(Vector2 origin, Vector2 end, List<SpriteRenderer> segments, ref Transform root, string rootName, int sortingOrder)
-        {
-            if (grappleRopeSprite == null)
-            {
-                SetRopeSegmentsActive(segments, false);
-                return;
-            }
-
-            Vector2 delta = end - origin;
-            float distance = delta.magnitude;
-            if (distance <= 0.001f)
-            {
-                SetRopeSegmentsActive(segments, false);
-                return;
-            }
-
-            if (root == null)
-            {
-                GameObject rootObject = new GameObject(rootName);
-                rootObject.transform.SetParent(transform, false);
-                root = rootObject.transform;
-            }
-
-            Vector2 direction = delta / distance;
-            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-            int segmentCount = Mathf.Max(1, Mathf.CeilToInt(distance / Mathf.Max(0.01f, grappleRopeSegmentLength)));
-            float segmentLength = distance / segmentCount;
-            Bounds spriteBounds = grappleRopeSprite.bounds;
-            float spriteWidth = Mathf.Max(0.001f, spriteBounds.size.x);
-            float spriteHeight = Mathf.Max(0.001f, spriteBounds.size.y);
-            float ropeWidth = Mathf.Max(0.001f, grappleRopeWidth);
-
-            for (int i = 0; i < segmentCount; i++)
-            {
-                SpriteRenderer segment = GetOrCreateRopeSegment(segments, root, rootName, i, sortingOrder);
-                segment.gameObject.SetActive(true);
-                segment.sprite = grappleRopeSprite;
-                segment.sortingOrder = sortingOrder;
-                segment.color = Color.white;
-
-                Vector2 segmentCenter = origin + direction * (segmentLength * (i + 0.5f));
-                segment.transform.position = new Vector3(segmentCenter.x, segmentCenter.y, transform.position.z);
-                segment.transform.rotation = Quaternion.Euler(0f, 0f, angle);
-                segment.transform.localScale = new Vector3(segmentLength / spriteWidth, ropeWidth / spriteHeight, 1f);
-            }
-
-            for (int i = segmentCount; i < segments.Count; i++)
-            {
-                segments[i].gameObject.SetActive(false);
-            }
-        }
-
-        private SpriteRenderer GetOrCreateRopeSegment(List<SpriteRenderer> segments, Transform root, string rootName, int index, int sortingOrder)
-        {
-            while (segments.Count <= index)
-            {
-                GameObject segmentObject = new GameObject($"{rootName} Segment {segments.Count + 1:00}");
-                segmentObject.transform.SetParent(root, false);
-                SpriteRenderer renderer = segmentObject.AddComponent<SpriteRenderer>();
-                renderer.sortingOrder = sortingOrder;
-                segments.Add(renderer);
-            }
-
-            return segments[index];
-        }
-
-        private static void SetRopeSegmentsActive(List<SpriteRenderer> segments, bool active)
-        {
-            for (int i = 0; i < segments.Count; i++)
-            {
-                if (segments[i] != null)
-                {
-                    segments[i].gameObject.SetActive(active);
-                }
-            }
         }
 
         private void PullTowardGrapplePoint()
@@ -1612,7 +1482,7 @@ namespace Ciga.Demo
 
             if (grappleAimRayLine != null)
             {
-                grappleAimRayLine.enabled = grappleRopeSprite == null;
+                grappleAimRayLine.enabled = true;
             }
 
             PlaySound(strikeAimStartClip);
@@ -1708,7 +1578,6 @@ namespace Ciga.Demo
                 grappleAimRayLine.enabled = false;
             }
 
-            SetRopeSegmentsActive(grappleAimRopeSegments, false);
             DestroyAnchorIndicator();
         }
 
@@ -1868,11 +1737,6 @@ namespace Ciga.Demo
             {
                 grappleLine.enabled = false;
             }
-
-            if (!isPullingGrappleObject)
-            {
-                SetRopeSegmentsActive(grappleActiveRopeSegments, false);
-            }
         }
 
         private void StopPullGrappleObject()
@@ -1884,11 +1748,6 @@ namespace Ciga.Demo
             if (grappleLine != null && !isGrappling)
             {
                 grappleLine.enabled = false;
-            }
-
-            if (!isGrappling)
-            {
-                SetRopeSegmentsActive(grappleActiveRopeSegments, false);
             }
         }
 
@@ -2051,7 +1910,7 @@ namespace Ciga.Demo
 
         private void UpdateGrappleLine()
         {
-            if (!isGrappling && !isPullingGrappleObject)
+            if ((!isGrappling && !isPullingGrappleObject) || grappleLine == null)
             {
                 return;
             }
@@ -2063,38 +1922,13 @@ namespace Ciga.Demo
                 return;
             }
 
-            Vector2 origin = GetGrappleOrigin();
-            if (grappleRopeSprite != null)
-            {
-                if (grappleLine != null)
-                {
-                    grappleLine.enabled = false;
-                }
-
-                UpdateRopeImageLine(origin, targetPoint, grappleActiveRopeSegments, ref grappleActiveRopeRoot, "Grapple Chain", 20);
-                return;
-            }
-
-            SetRopeSegmentsActive(grappleActiveRopeSegments, false);
-            if (grappleLine == null)
-            {
-                return;
-            }
-
-            grappleLine.SetPosition(0, origin);
+            grappleLine.SetPosition(0, GetGrappleOrigin());
             grappleLine.SetPosition(1, targetPoint);
         }
 
         private Vector2 GetGrappleOrigin()
         {
-            Vector2 baseOrigin = bodyCollider != null ? bodyCollider.bounds.center : transform.position;
-            Vector2 offset = grappleOriginOffset;
-            if (spriteRenderer != null && spriteRenderer.flipX)
-            {
-                offset.x *= -1f;
-            }
-
-            return baseOrigin + (Vector2)transform.TransformVector(offset);
+            return bodyCollider != null ? bodyCollider.bounds.center : transform.position;
         }
 
         private bool TryGetCurrentGrapplePoint(out Vector2 point)
@@ -2332,8 +2166,6 @@ namespace Ciga.Demo
             attackHitSize.x = Mathf.Max(0.1f, attackHitSize.x);
             attackHitSize.y = Mathf.Max(0.1f, attackHitSize.y);
             grappleAimRadius = Mathf.Max(0.1f, grappleAimRadius);
-            grappleRopeWidth = Mathf.Max(0.001f, grappleRopeWidth);
-            grappleRopeSegmentLength = Mathf.Max(0.01f, grappleRopeSegmentLength);
             grappleAimMoveSpeedMultiplier = Mathf.Clamp(grappleAimMoveSpeedMultiplier, 0.01f, 1f);
             grappleObjectPullSpeed = Mathf.Max(0.1f, grappleObjectPullSpeed);
             grappleClimbAnimationDuration = Mathf.Max(0f, grappleClimbAnimationDuration);
