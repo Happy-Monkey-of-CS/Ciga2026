@@ -151,7 +151,6 @@ public static class BossSceneBuilder
         GameObject player = CreatePlayer(heroSprite, heroController, noFrictionMaterial, lineMaterial);
         GameObject boss = CreateBoss(heroSprite, bossController, noFrictionMaterial, lineMaterial, player.GetComponent<PlayerController2D>());
         CreateCamera(player.transform);
-        CreateVoidZones(world.transform);
         CreateInstructions();
         CreateCollectibleHUD();
 
@@ -669,31 +668,6 @@ public static class BossSceneBuilder
         {
             property.intValue = value.value;
         }
-    }
-
-    private static void CreateVoidZones(Transform parent)
-    {
-        GameObject voidContainer = new GameObject("Void Zones");
-        voidContainer.transform.SetParent(parent);
-
-        // Bottom void zone — catches player/boss falling off the map
-        CreateVoidZone("Void Bottom", new Vector2(42f, -7f), new Vector2(140f, 3f), voidContainer.transform);
-
-        // Left void zone — catches player falling behind the scrolling view
-        CreateVoidZone("Void Left", new Vector2(-16f, 0f), new Vector2(4f, 40f), voidContainer.transform);
-    }
-
-    private static void CreateVoidZone(string name, Vector2 position, Vector2 size, Transform parent)
-    {
-        GameObject voidZone = new GameObject(name);
-        voidZone.transform.SetParent(parent);
-        voidZone.transform.position = new Vector3(position.x, position.y, 0f);
-
-        BoxCollider2D collider = voidZone.AddComponent<BoxCollider2D>();
-        collider.isTrigger = true;
-        collider.size = size;
-
-        voidZone.AddComponent<VoidZone2D>();
     }
 
     private const string CollectibleHUDPrefabPath = "Assets/Prefabs/CollectibleHUD.prefab";
