@@ -232,7 +232,12 @@ namespace Ciga.Demo
 
         private Material CreateSilhouetteMaterial(SpriteRenderer source)
         {
-            Shader silhouetteShader = Shader.Find("Ciga/SpriteSolidSilhouette");
+            Shader silhouetteShader = Resources.Load<Shader>("Shaders/SpriteSolidSilhouette");
+            if (silhouetteShader == null)
+            {
+                silhouetteShader = Shader.Find("Ciga/SpriteSolidSilhouette");
+            }
+
             if (silhouetteShader == null)
             {
                 Debug.LogWarning("Ciga/SpriteSolidSilhouette shader was not found. Falling back to tinted sprite outline.", this);
