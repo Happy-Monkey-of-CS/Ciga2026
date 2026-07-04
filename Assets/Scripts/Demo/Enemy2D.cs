@@ -38,6 +38,9 @@ namespace Ciga.Demo
         [SerializeField] private float fallGravityScale = 3f;
         [SerializeField] private float maxFallSpeed = 10f;
         [SerializeField] private EnemyMovementStep[] movementPlan;
+        [Header("Audio")]
+        [SerializeField] private AudioClip defeatClip;
+        [SerializeField] private AudioClip fallClip;
 
         private static PhysicsMaterial2D runtimeNoFrictionMaterial;
 
@@ -124,7 +127,18 @@ namespace Ciga.Demo
             }
 
             isDefeated = true;
+            PlaySound(defeatClip);
             Destroy(gameObject);
+        }
+
+        private void PlaySound(AudioClip clip, float volume = 1f)
+        {
+            if (clip == null) return;
+            AudioManager2D manager = AudioManager2D.Instance;
+            if (manager != null)
+            {
+                manager.PlayOneShotAt(clip, transform.position, volume);
+            }
         }
 
         public void DropFromSupport()
@@ -152,6 +166,8 @@ namespace Ciga.Demo
             body.bodyType = RigidbodyType2D.Dynamic;
             body.gravityScale = fallGravityScale;
             body.velocity = new Vector2(0f, Mathf.Min(0f, body.velocity.y));
+
+            PlaySound(fallClip);
         }
 
         public void BeginPlatformCarry()

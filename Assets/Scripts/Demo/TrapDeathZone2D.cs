@@ -5,6 +5,16 @@ namespace Ciga.Demo
     [RequireComponent(typeof(Collider2D))]
     public sealed class TrapDeathZone2D : MonoBehaviour
     {
+        [Header("Audio")]
+        [SerializeField] private AudioClip triggerClip;
+
+        private bool hasTriggered;
+
+        private void OnEnable()
+        {
+            hasTriggered = false;
+        }
+
         private void Reset()
         {
             GetComponent<Collider2D>().isTrigger = true;
@@ -20,7 +30,9 @@ namespace Ciga.Demo
 
             if (player != null)
             {
+                TriggerTrap();
                 player.Kill();
+                return;
             }
 
             Enemy2D enemy = other.GetComponent<Enemy2D>();
@@ -31,7 +43,23 @@ namespace Ciga.Demo
 
             if (enemy != null)
             {
+                TriggerTrap();
                 enemy.Defeat();
+            }
+        }
+
+        private void TriggerTrap()
+        {
+            if (hasTriggered) return;
+            hasTriggered = true;
+
+            if (triggerClip != null)
+            {
+                AudioManager2D manager = AudioManager2D.Instance;
+                if (manager != null)
+                {
+                    manager.PlayOneShotAt(triggerClip, transform.position);
+                }
             }
         }
     }

@@ -58,6 +58,26 @@ namespace Ciga.Demo
         [Header("Death")]
         [SerializeField] private bool restartOnDeath = true;
         [SerializeField] private float deathRestartDelay = 1.5f;
+        [Header("Audio")]
+        [SerializeField] private AudioClip jumpClip;
+        [SerializeField] private AudioClip landClip;
+        [SerializeField] private AudioClip attackClip;
+        [SerializeField] private AudioClip attackHitClip;
+        [SerializeField] private AudioClip deathClip;
+        [SerializeField] private AudioClip footstepsLoopClip;
+        [SerializeField] private AudioClip wallSlideLoopClip;
+        [SerializeField] private AudioClip wallJumpClip;
+        [SerializeField] private AudioClip grappleAimStartClip;
+        [SerializeField] private AudioClip grappleFireClip;
+        [SerializeField] private AudioClip grappleConnectClip;
+        [SerializeField] private AudioClip grapplePullSelfLoopClip;
+        [SerializeField] private AudioClip grapplePullObjectLoopClip;
+        [SerializeField] private AudioClip grappleLandClip;
+        [SerializeField] private AudioClip grappleClimbClip;
+        [SerializeField] private AudioClip strikeAimStartClip;
+        [SerializeField] private AudioClip strikeFireClip;
+        [SerializeField] private AudioClip strikeObjectLoopClip;
+        [SerializeField] private AudioClip strikeImpactClip;
         [SerializeField] private LayerMask groundMask = 1;
         [SerializeField] private LayerMask grappleMask = 1;
 
@@ -106,6 +126,19 @@ namespace Ciga.Demo
         private float wallJumpHorizontalVelocity;
         private int wallJumpStartWallSide;
         private int currentAttack;
+
+        // audio state tracking
+        private bool wasGrounded;
+        private bool wasWallSliding;
+        private bool wasGrappling;
+        private bool wasPullingGrappleObject;
+        private bool wasStrikingObject;
+        private bool footstepLoopActive;
+        private bool wallSlideLoopActive;
+        private bool grapplePullLoopActive;
+        private bool grappleObjectLoopActive;
+        private bool strikeObjectLoopActive;
+
         private readonly RaycastHit2D[] pulledObjectCastResults = new RaycastHit2D[16];
         private readonly Collider2D[] attackOverlapResults = new Collider2D[12];
         private readonly List<Enemy2D> enemyPlatformResults = new List<Enemy2D>();
@@ -242,6 +275,7 @@ namespace Ciga.Demo
 
             if (isDead)
             {
+                StopAllAudioLoops();
                 StopGrapple();
                 StopPullGrappleObject();
                 StopStrikeObject();
@@ -256,6 +290,7 @@ namespace Ciga.Demo
 
             if (isClimbing)
             {
+                StopAllAudioLoops();
                 body.gravityScale = 0f;
                 body.velocity = Vector2.zero;
                 UpdateAnimator();
@@ -312,11 +347,21 @@ namespace Ciga.Demo
                 {
                     animator.SetTrigger(JumpHash);
                 }
+
+                PlaySound(jumpClip);
+            }
+
+            // detect landing
+            if (isGrounded && !wasGrounded)
+            {
+                PlaySound(landClip);
             }
 
             UpdateAnimator();
             UpdateGrappleLine();
             WrapAtMapEdges();
+            UpdateAudioLoops();
+            UpdateAudioStateTracking();
             jumpRequested = false;
         }
 
@@ -337,6 +382,7 @@ namespace Ciga.Demo
 
         private void OnDisable()
         {
+            StopAllAudioLoops();
             StopGrappleAim();
             StopStrikeAim();
             StopGrapple();
@@ -346,6 +392,100 @@ namespace Ciga.Demo
             isForcedWallSliding = false;
             isWallJumpControlling = false;
         }
+
+        // ---- audio helpers -----------------------------------------------------------
+
+        private void PlaySound(AudioClip clip, float volume = 1f, float pitch = 1f)
+        {
+            if (clip == null) return;
+            AudioManager2D manager = AudioManager2D.Instance;
+            if (manager != null)
+            {
+                manager.PlayOneShotAt(clip, transform.position, volume, pitch);
+            }
+        }
+
+        private void StartLoop(ref bool active, string key, AudioClip clip, float volume = 1f)
+        {
+            if (active || clip == null) return;
+            AudioManager2D manager = AudioManager2D.Instance;
+            if (manager != null)
+            {
+                manager.StartLoop(key, clip, volume);
+                active = true;
+            }
+        }
+
+        private void StopLoop(ref bool active, string key)
+        {
+            if (!active) return;
+            AudioManager2D manager = AudioManager2D.Instance;
+            if (manager != null)
+            {
+                manager.StopLoop(key);
+            }
+            active = false;
+        }
+
+        private void StopAllAudioLoops()
+        {
+            StopLoop(ref footstepLoopActive, "player_footstep");
+            StopLoop(ref wallSlideLoopActive, "player_wallslide");
+            StopLoop(ref grapplePullLoopActive, "player_grapple_pull");
+            StopLoop(ref grappleObjectLoopActive, "player_grapple_object");
+            StopLoop(ref strikeObjectLoopActive, "player_strike_object");
+        }
+
+        private void UpdateAudioLoops()
+        {
+            if (isDead)
+            {
+                StopAllAudioLoops();
+                return;
+            }
+
+            // footsteps: when grounded and moving (auto-run is active)
+            bool shouldFootstep = isGrounded && !isRunBlockedAhead && !IsTimeStopAiming() && !isWallSliding;
+            if (shouldFootstep && !footstepLoopActive)
+                StartLoop(ref footstepLoopActive, "player_footstep", footstepsLoopClip);
+            else if (!shouldFootstep && footstepLoopActive)
+                StopLoop(ref footstepLoopActive, "player_footstep");
+
+            // wall slide: when sliding down a wall
+            if (isWallSliding && !wallSlideLoopActive)
+                StartLoop(ref wallSlideLoopActive, "player_wallslide", wallSlideLoopClip);
+            else if (!isWallSliding && wallSlideLoopActive)
+                StopLoop(ref wallSlideLoopActive, "player_wallslide");
+
+            // grapple pull self
+            if (isGrappling && !grapplePullLoopActive)
+                StartLoop(ref grapplePullLoopActive, "player_grapple_pull", grapplePullSelfLoopClip);
+            else if (!isGrappling && grapplePullLoopActive)
+                StopLoop(ref grapplePullLoopActive, "player_grapple_pull");
+
+            // grapple pull object
+            if (isPullingGrappleObject && !grappleObjectLoopActive)
+                StartLoop(ref grappleObjectLoopActive, "player_grapple_object", grapplePullObjectLoopClip);
+            else if (!isPullingGrappleObject && grappleObjectLoopActive)
+                StopLoop(ref grappleObjectLoopActive, "player_grapple_object");
+
+            // strike object moving
+            if (isStrikingObject && !strikeObjectLoopActive)
+                StartLoop(ref strikeObjectLoopActive, "player_strike_object", strikeObjectLoopClip);
+            else if (!isStrikingObject && strikeObjectLoopActive)
+                StopLoop(ref strikeObjectLoopActive, "player_strike_object");
+        }
+
+        private void UpdateAudioStateTracking()
+        {
+            wasGrounded = isGrounded;
+            wasWallSliding = isWallSliding;
+            wasGrappling = isGrappling;
+            wasPullingGrappleObject = isPullingGrappleObject;
+            wasStrikingObject = isStrikingObject;
+        }
+
+        // ---- gameplay ---------------------------------------------------------------
 
         private void Attack(bool dealDamage = true)
         {
@@ -362,6 +502,7 @@ namespace Ciga.Demo
             animator.SetTrigger(AttackHashes[currentAttack]);
             currentAttack = (currentAttack + 1) % AttackHashes.Length;
             timeSinceAttack = 0f;
+            PlaySound(attackClip);
             if (dealDamage)
             {
                 HitEnemiesInAttackRange();
@@ -373,6 +514,7 @@ namespace Ciga.Demo
             float facing = spriteRenderer != null && spriteRenderer.flipX ? -1f : 1f;
             Vector2 center = (Vector2)transform.position + new Vector2(attackHitOffset.x * facing, attackHitOffset.y);
             int hitCount = Physics2D.OverlapBoxNonAlloc(center, attackHitSize, 0f, attackOverlapResults);
+            bool hitEnemy = false;
 
             for (int i = 0; i < hitCount; i++)
             {
@@ -391,7 +533,13 @@ namespace Ciga.Demo
                 if (enemy != null)
                 {
                     enemy.Defeat();
+                    hitEnemy = true;
                 }
+            }
+
+            if (hitEnemy)
+            {
+                PlaySound(attackHitClip);
             }
         }
 
@@ -404,6 +552,7 @@ namespace Ciga.Demo
 
             isDead = true;
             jumpRequested = false;
+            StopAllAudioLoops();
             StopGrappleAim();
             StopStrikeAim();
             StopGrapple();
@@ -413,6 +562,8 @@ namespace Ciga.Demo
             isForcedWallSliding = false;
             isWallJumpControlling = false;
             body.velocity = Vector2.zero;
+
+            PlaySound(deathClip);
 
             if (animator != null)
             {
@@ -431,6 +582,24 @@ namespace Ciga.Demo
             float delay = Mathf.Max(0f, deathRestartDelay);
             yield return new WaitForSeconds(delay);
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
+
+        /// <summary>
+        /// Called by TeleportZone2D (and other external systems) after moving the player.
+        /// Cleans up grapple/aim/wall-slide state so the player arrives cleanly.
+        /// </summary>
+        public void OnTeleported()
+        {
+            StopGrappleAim();
+            StopStrikeAim();
+            StopGrapple();
+            StopPullGrappleObject();
+            StopStrikeObject();
+            StopClimb();
+            StopAllAudioLoops();
+            isForcedWallSliding = false;
+            isWallJumpControlling = false;
+            UpdateAudioLoops();
         }
 
         // Called by the Hero Knight wall-slide animation event.
@@ -563,6 +732,7 @@ namespace Ciga.Demo
                 grappleAimRayLine.enabled = true;
             }
 
+            PlaySound(grappleAimStartClip);
             UpdateGrappleAim();
         }
 
@@ -608,6 +778,9 @@ namespace Ciga.Demo
 
             if (target != null && !target.isTrigger)
             {
+                PlaySound(grappleFireClip);
+                PlaySound(grappleConnectClip);
+
                 if (TryGetRunBlocker(out Collider2D blocker) && IsTargetOnSameSideAsBlocker(target, blocker))
                 {
                     StartPullGrappleObject(target, targetPoint);
@@ -766,6 +939,8 @@ namespace Ciga.Demo
             isGrounded = false;
             ApplyWallSlideGravity();
             body.velocity = new Vector2(wallJumpHorizontalVelocity, wallJumpVerticalSpeed);
+
+            PlaySound(wallJumpClip);
 
             if (animator != null)
             {
@@ -1085,6 +1260,7 @@ namespace Ciga.Demo
 
             if (willHitCollider || HasStruckObjectHitNewCollider())
             {
+                PlaySound(strikeImpactClip);
                 StopStrikeObject();
             }
         }
@@ -1128,6 +1304,7 @@ namespace Ciga.Demo
                 grappleAimRayLine.enabled = true;
             }
 
+            PlaySound(strikeAimStartClip);
             UpdateStrikeAim();
         }
 
@@ -1180,6 +1357,7 @@ namespace Ciga.Demo
 
             if (target != null && !target.isTrigger && !IsGrappleWallTarget(target))
             {
+                PlaySound(strikeFireClip);
                 Vector2 direction = targetPoint - origin;
                 if (direction.sqrMagnitude <= 0.0001f)
                 {
@@ -1423,6 +1601,7 @@ namespace Ciga.Demo
                 StopCoroutine(climbRoutine);
             }
 
+            PlaySound(grappleClimbClip);
             climbRoutine = StartCoroutine(ClimbOntoGrappleTarget(target, fromLeft));
         }
 
@@ -1497,6 +1676,8 @@ namespace Ciga.Demo
             isForcedWallSliding = false;
             body.gravityScale = defaultGravityScale;
             body.velocity = Vector2.zero;
+
+            PlaySound(grappleLandClip);
             UpdateAnimator();
         }
 

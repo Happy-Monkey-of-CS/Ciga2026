@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 109199160834433548}
   - component: {fileID: 8850622284337456361}
   - component: {fileID: 3290588718152682618}
+  - component: {fileID: 7375165236648420091}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Enemy
@@ -150,6 +151,8 @@ MonoBehaviour:
     m_Bits: 1
   edgeCheckForwardOffset: 0.08
   edgeCheckDistance: 0.35
+  fallGravityScale: 3
+  maxFallSpeed: 10
   movementPlan:
   - action: 3
     duration: 0
@@ -160,3 +163,32 @@ MonoBehaviour:
   - action: 4
     duration: 0
     speedMultiplier: 1
+  defeatClip: {fileID: 8300000, guid: 9dee68e3e205316458ae80a278e6777d, type: 3}
+  fallClip: {fileID: 8300000, guid: c94bf0160bfcd3640b517921d7a7ebd4, type: 3}
+--- !u!50 &7375165236648420091
+Rigidbody2D:
+  serializedVersion: 4
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7001370235131729375}
+  m_BodyType: 0
+  m_Simulated: 1
+  m_UseFullKinematicContacts: 0
+  m_UseAutoMass: 0
+  m_Mass: 1
+  m_LinearDrag: 0
+  m_AngularDrag: 0.05
+  m_GravityScale: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_Interpolate: 0
+  m_SleepingMode: 1
+  m_CollisionDetection: 0
+  m_Constraints: 0
