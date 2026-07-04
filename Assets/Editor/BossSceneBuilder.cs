@@ -74,9 +74,16 @@ public static class BossSceneBuilder
         Sprite whiteSprite = CreateSprite(WhiteSpritePath);
         PhysicsMaterial2D noFrictionMaterial = CreateNoFrictionMaterial();
         Material lineMaterial = CreateLineMaterial();
+        Material playerChainMaterial = MermaidPlayerAnimationBuilder.CreateChainMaterial("Assets/Demo/Mermaid/MermaidChainMaterial.mat");
         RuntimeAnimatorController heroController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(HeroKnightControllerPath);
+        RuntimeAnimatorController mermaidPlayerController = MermaidPlayerAnimationBuilder.CreateOrUpdateController();
         RuntimeAnimatorController bossController = CreateBossAnimatorController();
         Sprite heroSprite = LoadHeroSprite();
+        Sprite mermaidPlayerSprite = MermaidPlayerAnimationBuilder.LoadSprite("Idle_1");
+        if (mermaidPlayerSprite == null)
+        {
+            mermaidPlayerSprite = heroSprite;
+        }
 
         GameObject world = new GameObject("World");
         GameObject platforms = new GameObject("Platforms");
@@ -148,7 +155,7 @@ public static class BossSceneBuilder
             new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.StopForDuration, 0.6f),
             new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.MoveRightUntilEdge, 0f));
 
-        GameObject player = CreatePlayer(heroSprite, heroController, noFrictionMaterial, lineMaterial);
+        GameObject player = CreatePlayer(mermaidPlayerSprite, mermaidPlayerController != null ? mermaidPlayerController : heroController, noFrictionMaterial, playerChainMaterial);
         GameObject boss = CreateBoss(heroSprite, bossController, noFrictionMaterial, lineMaterial, player.GetComponent<PlayerController2D>());
         CreateCamera(player.transform);
         CreateVoidZones(world.transform);
@@ -196,7 +203,9 @@ public static class BossSceneBuilder
         Set(serialized, "wrapLeftX", -9.5f);
         Set(serialized, "wrapRightX", 100f);
         Set(serialized, "grappleAimRadius", 6.2f);
+        Set(serialized, "grappleAimSprite", sprite);
         Set(serialized, "strikeAimRadius", 2.5f);
+        Set(serialized, "strikeAimSprite", sprite);
         Set(serialized, "groundMask", new LayerMask { value = 1 << GroundLayer });
         Set(serialized, "grappleMask", new LayerMask { value = 1 << GroundLayer });
         serialized.ApplyModifiedPropertiesWithoutUndo();
@@ -259,6 +268,7 @@ public static class BossSceneBuilder
         Set(serialized, "maxHealth", 100f);
         Set(serialized, "playerAttackDamage", 20f);
         Set(serialized, "struckStepDamage", 35f);
+        Set(serialized, "trapDamage", 35f);
         Set(serialized, "deathDestroyDelay", 1.2f);
         serialized.ApplyModifiedPropertiesWithoutUndo();
 
