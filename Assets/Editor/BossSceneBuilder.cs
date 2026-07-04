@@ -267,6 +267,7 @@ public static class BossSceneBuilder
         Set(serialized, "maxHealth", 100f);
         Set(serialized, "playerAttackDamage", 20f);
         Set(serialized, "struckStepDamage", 35f);
+        Set(serialized, "trapDamage", 35f);
         Set(serialized, "deathDestroyDelay", 1.2f);
         serialized.ApplyModifiedPropertiesWithoutUndo();
 

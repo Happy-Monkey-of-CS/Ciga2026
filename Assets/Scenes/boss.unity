@@ -3026,6 +3026,11 @@ MonoBehaviour:
   grappleAimRayColor: {r: 0.35, g: 0.85, b: 1, a: 0.9}
   grappleHighlightColor: {r: 1, g: 0.9, b: 0.2, a: 1}
   grappleAimSprite: {fileID: 21300000, guid: ab8eb6e4510af374e8ee72a4ec144607, type: 3}
+  grappleAimRayMaterial: {fileID: 0}
+  grappleRopeSprite: {fileID: 0}
+  grappleRopeWidth: 0.12
+  grappleRopeSegmentLength: 0.18
+  grappleOriginOffset: {x: 0.15, y: -0.35}
   strikeAimRadius: 2.5
   strikeObjectSpeed: 12
   strikeAimSprite: {fileID: 21300000, guid: ab8eb6e4510af374e8ee72a4ec144607, type: 3}
@@ -3471,6 +3476,7 @@ MonoBehaviour:
   maxHealth: 100
   playerAttackDamage: 20
   struckStepDamage: 35
+  trapDamage: 35
   hitFlashDuration: 0.12
   deathDestroyDelay: 1.2
   grappleRange: 9

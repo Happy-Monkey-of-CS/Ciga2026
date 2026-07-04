@@ -344,6 +344,7 @@ MonoBehaviour:
   maxHealth: 100
   playerAttackDamage: 20
   struckStepDamage: 35
+  trapDamage: 35
   hitFlashDuration: 0.12
   deathDestroyDelay: 1.2
   grappleRange: 9
