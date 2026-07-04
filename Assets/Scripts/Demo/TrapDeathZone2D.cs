@@ -22,6 +22,26 @@ namespace Ciga.Demo
 
         private void OnTriggerEnter2D(Collider2D other)
         {
+            HandleContact(other);
+        }
+
+        private void OnCollisionEnter2D(Collision2D collision)
+        {
+            HandleContact(collision.collider);
+        }
+
+        private void OnCollisionStay2D(Collision2D collision)
+        {
+            HandleContact(collision.collider);
+        }
+
+        private void HandleContact(Collider2D other)
+        {
+            if (other == null)
+            {
+                return;
+            }
+
             PlayerController2D player = other.GetComponent<PlayerController2D>();
             if (player == null)
             {
