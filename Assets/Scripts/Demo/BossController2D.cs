@@ -153,13 +153,15 @@ namespace Ciga.Demo
             }
 
             float playerDeltaX = player.transform.position.x - transform.position.x;
-            if (Mathf.Abs(playerDeltaX) <= desiredChaseDistance + 0.5f)
+            float absDeltaX = Mathf.Abs(playerDeltaX);
+            if (absDeltaX <= desiredChaseDistance + 0.5f)
             {
                 spriteRenderer.flipX = playerDeltaX < 0f;
             }
             else
             {
-                spriteRenderer.flipX = false;
+                // Face the movement direction when far from player
+                spriteRenderer.flipX = body.velocity.x < -0.1f;
             }
 
             if (Time.time < nextDecisionTime)
@@ -197,9 +199,12 @@ namespace Ciga.Demo
                 return;
             }
 
-            body.velocity = new Vector2(CalculateChaseSpeed(toPlayer.x), body.velocity.y);
+            float horizontalGap = toPlayer.x;
+            float absGap = Mathf.Abs(horizontalGap);
+            float direction = horizontalGap >= 0f ? 1f : -1f;
+            body.velocity = new Vector2(CalculateChaseSpeed(absGap) * direction, body.velocity.y);
 
-            if (ShouldJumpForTraversal(1f, toPlayer))
+            if (ShouldJumpForTraversal(direction, toPlayer))
             {
                 Jump();
             }
@@ -293,8 +298,9 @@ namespace Ciga.Demo
                     break;
                 }
 
-                body.velocity = new Vector2(burstSpeed, body.velocity.y);
-                if (ShouldJumpForTraversal(1f, toPlayer))
+                float burstDirection = player.transform.position.x > transform.position.x ? 1f : -1f;
+                body.velocity = new Vector2(burstSpeed * burstDirection, body.velocity.y);
+                if (ShouldJumpForTraversal(burstDirection, toPlayer))
                 {
                     Jump();
                 }
@@ -734,18 +740,18 @@ namespace Ciga.Demo
             return target != null;
         }
 
-        private float CalculateChaseSpeed(float horizontalGap)
+        private float CalculateChaseSpeed(float absHorizontalGap)
         {
-            if (horizontalGap < desiredChaseDistance - chaseDistanceDeadZone)
+            if (absHorizontalGap < desiredChaseDistance - chaseDistanceDeadZone)
             {
-                float nearT = Mathf.InverseLerp(-1f, desiredChaseDistance - chaseDistanceDeadZone, horizontalGap);
+                float nearT = Mathf.InverseLerp(0f, desiredChaseDistance - chaseDistanceDeadZone, absHorizontalGap);
                 return Mathf.Lerp(playerRunSpeedEstimate * 0.35f, playerRunSpeedEstimate * 0.85f, nearT);
             }
 
             float speed = Mathf.Max(moveSpeed, playerRunSpeedEstimate);
-            if (horizontalGap > catchUpDistance)
+            if (absHorizontalGap > catchUpDistance)
             {
-                float catchUpT = Mathf.InverseLerp(catchUpDistance, emergencyRepositionGap, horizontalGap);
+                float catchUpT = Mathf.InverseLerp(catchUpDistance, emergencyRepositionGap, absHorizontalGap);
                 speed += Mathf.Lerp(catchUpSpeedBonus * 0.35f, catchUpSpeedBonus, catchUpT);
             }
 
@@ -759,7 +765,7 @@ namespace Ciga.Demo
 
         private bool ShouldEmergencyReposition(Vector2 toPlayer)
         {
-            return toPlayer.x > emergencyRepositionGap || Mathf.Abs(toPlayer.y) > emergencyVerticalGap;
+            return Mathf.Abs(toPlayer.x) > emergencyRepositionGap || Mathf.Abs(toPlayer.y) > emergencyVerticalGap;
         }
 
         private void RepositionBehindPlayer()
