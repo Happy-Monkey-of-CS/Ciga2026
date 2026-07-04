@@ -163,6 +163,8 @@ namespace Ciga.Demo
         private static readonly int DeathHash = Animator.StringToHash("Death");
         private static readonly int DeathStateHash = Animator.StringToHash("Death");
         private static readonly int NoBloodHash = Animator.StringToHash("noBlood");
+        private static readonly int PullObjectHash = Animator.StringToHash("PullObject");
+        private static readonly int PreviewModeHash = Animator.StringToHash("PreviewMode");
         private static readonly int[] AttackHashes =
         {
             Animator.StringToHash("Attack1"),
@@ -182,6 +184,7 @@ namespace Ciga.Demo
             if (animator != null)
             {
                 defaultAnimatorSpeed = animator.speed;
+                animator.SetBool(PreviewModeHash, false);
             }
 
             if (grappleLine != null)
@@ -703,7 +706,9 @@ namespace Ciga.Demo
             }
 
             animator.SetBool(GroundedHash, isGrounded);
+            animator.SetBool(PreviewModeHash, false);
             animator.SetBool(WallSlideHash, isWallSliding);
+            animator.SetBool(PullObjectHash, isPullingGrappleObject);
             animator.SetFloat(AirSpeedYHash, body.velocity.y);
             animator.SetInteger(AnimStateHash, ShouldPlayRunAnimation() ? 1 : 0);
             UpdateWallSlideFacing();
