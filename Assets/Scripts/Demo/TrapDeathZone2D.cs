@@ -22,6 +22,17 @@ namespace Ciga.Demo
             {
                 player.Kill();
             }
+
+            Enemy2D enemy = other.GetComponent<Enemy2D>();
+            if (enemy == null)
+            {
+                enemy = other.GetComponentInParent<Enemy2D>();
+            }
+
+            if (enemy != null)
+            {
+                enemy.Defeat();
+            }
         }
     }
 }

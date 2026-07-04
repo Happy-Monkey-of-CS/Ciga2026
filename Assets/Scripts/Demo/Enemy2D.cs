@@ -6,6 +6,8 @@ namespace Ciga.Demo
     [RequireComponent(typeof(Rigidbody2D))]
     public sealed class Enemy2D : MonoBehaviour
     {
+        private const string TrapTag = "Trap";
+
         public enum EnemyMovementAction
         {
             MoveLeftForDuration,
@@ -90,22 +92,26 @@ namespace Ciga.Demo
 
         private void OnTriggerEnter2D(Collider2D other)
         {
+            DefeatIfTouchedTrap(other);
             KillPlayerIfTouched(other);
         }
 
         private void OnTriggerStay2D(Collider2D other)
         {
+            DefeatIfTouchedTrap(other);
             KillPlayerIfTouched(other);
         }
 
         private void OnCollisionEnter2D(Collision2D collision)
         {
+            DefeatIfTouchedTrap(collision.collider);
             KillPlayerIfTouched(collision.collider);
             LandIfSupported(collision);
         }
 
         private void OnCollisionStay2D(Collision2D collision)
         {
+            DefeatIfTouchedTrap(collision.collider);
             KillPlayerIfTouched(collision.collider);
             LandIfSupported(collision);
         }
@@ -212,6 +218,16 @@ namespace Ciga.Demo
             {
                 player.Kill();
             }
+        }
+
+        private void DefeatIfTouchedTrap(Collider2D other)
+        {
+            if (isDefeated || other == null || !other.CompareTag(TrapTag))
+            {
+                return;
+            }
+
+            Defeat();
         }
 
         private void UpdateMovementPlan()
