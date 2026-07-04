@@ -26,6 +26,12 @@ namespace Ciga.Demo
         [SerializeField] private float groundNormalThreshold = 0.65f;
         [Tooltip("Multiplier applied to gravity while sliding down a wall. Lower values fall more slowly.")]
         [SerializeField, Range(0.05f, 1f)] private float wallSlideFallSpeedMultiplier = 0.35f;
+        [Tooltip("Horizontal speed applied away from the wall when jumping during wall slide.")]
+        [SerializeField] private float wallJumpHorizontalSpeed = 8f;
+        [Tooltip("Vertical speed applied when jumping during wall slide.")]
+        [SerializeField] private float wallJumpVerticalSpeed = 13f;
+        [Tooltip("Maximum time wall-jump horizontal speed can override auto-run while traveling toward another wall.")]
+        [SerializeField] private float wallJumpControlDuration = 1.2f;
         [SerializeField] private float attackComboResetTime = 1f;
         [Header("Combat")]
         [SerializeField] private Vector2 attackHitOffset = new Vector2(0.75f, 0.55f);
@@ -95,6 +101,10 @@ namespace Ciga.Demo
         private bool isClimbing;
         private bool isForcedWallSliding;
         private bool isRunBlockedAhead;
+        private int wallSide;
+        private float wallJumpControlTimer;
+        private float wallJumpHorizontalVelocity;
+        private int wallJumpStartWallSide;
         private int currentAttack;
         private readonly RaycastHit2D[] pulledObjectCastResults = new RaycastHit2D[16];
         private readonly Collider2D[] attackOverlapResults = new Collider2D[12];
@@ -199,7 +209,7 @@ namespace Ciga.Demo
                 Kill();
             }
 
-            if (spriteRenderer != null && !isGrappleAiming && !isStrikeAiming)
+            if (spriteRenderer != null && !isGrappleAiming && !isStrikeAiming && !isWallSliding)
             {
                 spriteRenderer.flipX = false;
             }
@@ -209,12 +219,29 @@ namespace Ciga.Demo
         {
             isGrounded = CheckGrounded();
             isRunBlockedAhead = IsRunBlockedAhead();
-            if (isForcedWallSliding && (isGrounded || !CheckWallBeside()))
+            bool hasWallBeside = TryGetWallBeside(out int detectedWallSide, out Collider2D detectedWall);
+            if (hasWallBeside)
+            {
+                wallSide = detectedWallSide;
+            }
+
+            bool caughtOppositeWallAfterJump = TryCatchOppositeWallAfterWallJump(hasWallBeside, detectedWallSide, detectedWall);
+            if (ShouldEndWallJumpControl(isGrounded, hasWallBeside, detectedWallSide))
+            {
+                wallJumpControlTimer = 0f;
+            }
+
+            if (wallJumpControlTimer > 0f)
+            {
+                wallJumpControlTimer = Mathf.Max(0f, wallJumpControlTimer - Time.fixedDeltaTime);
+            }
+
+            if (isForcedWallSliding && (isGrounded || !hasWallBeside))
             {
                 isForcedWallSliding = false;
             }
 
-            bool naturalWallSliding = !isGrounded && !isGrappling && !isClimbing && body.velocity.y < 0f && CheckWallBeside();
+            bool naturalWallSliding = !isGrounded && !isGrappling && !isClimbing && (body.velocity.y < 0f || caughtOppositeWallAfterJump) && hasWallBeside;
             isWallSliding = isForcedWallSliding || naturalWallSliding;
 
             if (isDead)
@@ -243,26 +270,37 @@ namespace Ciga.Demo
 
             ApplyWallSlideGravity();
 
+            bool didWallJump = false;
+            if (jumpRequested && isWallSliding && !IsTimeStopAiming())
+            {
+                WallJump();
+                didWallJump = true;
+            }
+
             if (isPullingGrappleObject)
             {
-                body.velocity = new Vector2(GetCurrentAutoRunSpeed(), body.velocity.y);
+                body.velocity = new Vector2(GetCurrentHorizontalSpeed(), body.velocity.y);
                 PullGrappleObjectTowardPlayer();
             }
             else if (isStrikingObject)
             {
-                body.velocity = new Vector2(GetCurrentAutoRunSpeed(), body.velocity.y);
+                body.velocity = new Vector2(GetCurrentHorizontalSpeed(), body.velocity.y);
                 MoveStruckObject();
             }
             else if (isGrappling)
             {
                 PullTowardGrapplePoint();
             }
+            else if (isWallSliding)
+            {
+                body.velocity = new Vector2(0f, body.velocity.y);
+            }
             else
             {
-                body.velocity = new Vector2(GetCurrentAutoRunSpeed(), body.velocity.y);
+                body.velocity = new Vector2(GetCurrentHorizontalSpeed(), body.velocity.y);
             }
 
-            if (jumpRequested && isGrounded && !IsTimeStopAiming())
+            if (!didWallJump && jumpRequested && isGrounded && !IsTimeStopAiming())
             {
                 StopGrapple();
                 StopPullGrappleObject();
@@ -309,6 +347,7 @@ namespace Ciga.Demo
             StopStrikeObject();
             StopClimb();
             isForcedWallSliding = false;
+            wallJumpControlTimer = 0f;
         }
 
         private void Attack(bool dealDamage = true)
@@ -375,6 +414,7 @@ namespace Ciga.Demo
             StopStrikeObject();
             StopClimb();
             isForcedWallSliding = false;
+            wallJumpControlTimer = 0f;
             body.velocity = Vector2.zero;
 
             if (animator != null)
@@ -412,6 +452,17 @@ namespace Ciga.Demo
             animator.SetBool(WallSlideHash, isWallSliding);
             animator.SetFloat(AirSpeedYHash, body.velocity.y);
             animator.SetInteger(AnimStateHash, ShouldPlayRunAnimation() ? 1 : 0);
+            UpdateWallSlideFacing();
+        }
+
+        private void UpdateWallSlideFacing()
+        {
+            if (spriteRenderer == null || !isWallSliding || isGrappleAiming || isStrikeAiming)
+            {
+                return;
+            }
+
+            spriteRenderer.flipX = wallSide < 0;
         }
 
         private bool ShouldPlayRunAnimation()
@@ -674,6 +725,69 @@ namespace Ciga.Demo
         private float GetCurrentAutoRunSpeed()
         {
             return isGrappleAiming || isStrikeAiming ? autoRunSpeed * grappleAimMoveSpeedMultiplier : autoRunSpeed;
+        }
+
+        private float GetCurrentHorizontalSpeed()
+        {
+            return wallJumpControlTimer > 0f ? wallJumpHorizontalVelocity : GetCurrentAutoRunSpeed();
+        }
+
+        private void WallJump()
+        {
+            StopGrapple();
+            StopPullGrappleObject();
+            StopStrikeObject();
+            StopClimb();
+
+            int jumpAwayDirection = wallSide == 0 ? -1 : -wallSide;
+            wallJumpHorizontalVelocity = jumpAwayDirection * wallJumpHorizontalSpeed;
+            wallJumpControlTimer = wallJumpControlDuration;
+            wallJumpStartWallSide = wallSide;
+            isForcedWallSliding = false;
+            isWallSliding = false;
+            isGrounded = false;
+            ApplyWallSlideGravity();
+            body.velocity = new Vector2(wallJumpHorizontalVelocity, wallJumpVerticalSpeed);
+
+            if (animator != null)
+            {
+                animator.SetTrigger(JumpHash);
+            }
+        }
+
+        private bool ShouldEndWallJumpControl(bool grounded, bool hasWallBeside, int detectedWallSide)
+        {
+            if (wallJumpControlTimer <= 0f)
+            {
+                return false;
+            }
+
+            if (grounded)
+            {
+                return true;
+            }
+
+            return hasWallBeside && detectedWallSide != 0 && detectedWallSide != wallJumpStartWallSide;
+        }
+
+        private bool TryCatchOppositeWallAfterWallJump(bool hasWallBeside, int detectedWallSide, Collider2D detectedWall)
+        {
+            if (wallJumpControlTimer <= 0f || !hasWallBeside || detectedWallSide == 0 || detectedWallSide == wallJumpStartWallSide)
+            {
+                return false;
+            }
+
+            if (detectedWall != null)
+            {
+                PlaceBesideWall(detectedWall, detectedWallSide > 0);
+            }
+
+            wallSide = detectedWallSide;
+            wallJumpControlTimer = 0f;
+            isForcedWallSliding = true;
+            isWallSliding = true;
+            body.velocity = new Vector2(0f, Mathf.Min(body.velocity.y, -0.1f));
+            return true;
         }
 
         private bool IsTimeStopAiming()
@@ -1259,6 +1373,8 @@ namespace Ciga.Demo
             StopGrappleAim();
             StopClimb();
             PlaceBesideWall(target, fromLeft);
+            wallSide = fromLeft ? 1 : -1;
+            wallJumpControlTimer = 0f;
             isForcedWallSliding = true;
             isWallSliding = true;
             isGrounded = false;
@@ -1469,6 +1585,16 @@ namespace Ciga.Demo
 
         private bool CheckWallBeside()
         {
+            return TryGetWallSide(out int _);
+        }
+
+        private bool TryGetWallSide(out int side)
+        {
+            return TryGetWallBeside(out side, out Collider2D _);
+        }
+
+        private bool TryGetWallBeside(out int side, out Collider2D wall)
+        {
             Bounds bounds = bodyCollider.bounds;
             float rightX = bounds.max.x - 0.02f;
             float leftX = bounds.min.x + 0.02f;
@@ -1476,25 +1602,46 @@ namespace Ciga.Demo
             float center = bounds.center.y;
             float top = bounds.max.y - bounds.size.y * 0.1f;
 
-            return IsWallBeside(new Vector2(rightX, bottom), Vector2.right)
-                || IsWallBeside(new Vector2(rightX, center), Vector2.right)
-                || IsWallBeside(new Vector2(rightX, top), Vector2.right)
-                || IsWallBeside(new Vector2(leftX, bottom), Vector2.left)
-                || IsWallBeside(new Vector2(leftX, center), Vector2.left)
-                || IsWallBeside(new Vector2(leftX, top), Vector2.left);
+            if (TryGetWallBesideFrom(new Vector2(rightX, bottom), Vector2.right, out wall)
+                || TryGetWallBesideFrom(new Vector2(rightX, center), Vector2.right, out wall)
+                || TryGetWallBesideFrom(new Vector2(rightX, top), Vector2.right, out wall))
+            {
+                side = 1;
+                return true;
+            }
+
+            if (TryGetWallBesideFrom(new Vector2(leftX, bottom), Vector2.left, out wall)
+                || TryGetWallBesideFrom(new Vector2(leftX, center), Vector2.left, out wall)
+                || TryGetWallBesideFrom(new Vector2(leftX, top), Vector2.left, out wall))
+            {
+                side = -1;
+                return true;
+            }
+
+            side = 0;
+            wall = null;
+            return false;
         }
 
         private bool IsWallBeside(Vector2 origin, Vector2 direction)
         {
+            return TryGetWallBesideFrom(origin, direction, out Collider2D _);
+        }
+
+        private bool TryGetWallBesideFrom(Vector2 origin, Vector2 direction, out Collider2D wall)
+        {
             RaycastHit2D hit = Physics2D.Raycast(origin, direction, wallCheckDistance + 0.04f, groundMask);
             if (hit.collider == null)
             {
+                wall = null;
                 return false;
             }
 
-            return direction.x > 0f
+            bool isWall = direction.x > 0f
                 ? hit.normal.x <= -groundNormalThreshold
                 : hit.normal.x >= groundNormalThreshold;
+            wall = isWall ? hit.collider : null;
+            return isWall;
         }
 
         private bool IsRunBlockedAhead()
@@ -1594,6 +1741,7 @@ namespace Ciga.Demo
             StopStrikeAim();
             StopClimb();
             isForcedWallSliding = false;
+            wallJumpControlTimer = 0f;
             Vector2 velocity = body.velocity;
             body.position = new Vector2(wrapLeftX, body.position.y);
             body.velocity = velocity;
@@ -1610,6 +1758,9 @@ namespace Ciga.Demo
 
             wallCheckDistance = Mathf.Max(0.01f, wallCheckDistance);
             wallSlideFallSpeedMultiplier = Mathf.Clamp(wallSlideFallSpeedMultiplier, 0.05f, 1f);
+            wallJumpHorizontalSpeed = Mathf.Max(0.1f, wallJumpHorizontalSpeed);
+            wallJumpVerticalSpeed = Mathf.Max(0.1f, wallJumpVerticalSpeed);
+            wallJumpControlDuration = Mathf.Max(0f, wallJumpControlDuration);
             attackHitSize.x = Mathf.Max(0.1f, attackHitSize.x);
             attackHitSize.y = Mathf.Max(0.1f, attackHitSize.y);
             grappleAimRadius = Mathf.Max(0.1f, grappleAimRadius);
