@@ -23,6 +23,20 @@ public static class DemoSceneBuilder
         }
     }
 
+    private readonly struct StepMovementStepConfig
+    {
+        public readonly StepMover2D.StepMovementAction Action;
+        public readonly float Duration;
+        public readonly float SpeedMultiplier;
+
+        public StepMovementStepConfig(StepMover2D.StepMovementAction action, float duration, float speedMultiplier = 1f)
+        {
+            Action = action;
+            Duration = duration;
+            SpeedMultiplier = speedMultiplier;
+        }
+    }
+
     private const string ScenePath = "Assets/Scenes/demo.unity";
     private const string NoFrictionMaterialPath = "Assets/Demo/NoFriction2D.physicsMaterial2D";
     private const string GrappleRopeTexturePath = "Assets/Demo/GrappleRopeTexture.asset";
@@ -96,9 +110,19 @@ public static class DemoSceneBuilder
         CreateBackground(whiteSprite, world.transform);
         CreateForeground(whiteSprite, world.transform);
         CreateGround("Ground", new Vector2(4f, -2.4f), new Vector2(34f, 1f), new Color(0.2f, 0.5f, 0.25f), whiteSprite, noFrictionMaterial, platforms.transform);
-        CreatePrefabInstance(StepPrefabPath, "Step_01", new Vector2(5.2f, -0.8f), new Vector2(3f, 0.45f), new Color(0.32f, 0.62f, 0.32f), platforms.transform);
-        CreatePrefabInstance(StepPrefabPath, "Step_02", new Vector2(9.2f, 0.5f), new Vector2(3.2f, 0.45f), new Color(0.32f, 0.62f, 0.32f), platforms.transform);
-        CreatePrefabInstance(StepPrefabPath, "Step_03", new Vector2(14f, -0.2f), new Vector2(4f, 0.45f), new Color(0.32f, 0.62f, 0.32f), platforms.transform);
+        GameObject stepOne = CreatePrefabInstance(StepPrefabPath, "Step_01", new Vector2(5.2f, -0.8f), new Vector2(3f, 0.45f), new Color(0.32f, 0.62f, 0.32f), platforms.transform);
+        ConfigureStepMovement(stepOne, 0.8f,
+            new StepMovementStepConfig(StepMover2D.StepMovementAction.MoveRightForDuration, 1.5f),
+            new StepMovementStepConfig(StepMover2D.StepMovementAction.StopForDuration, 0.75f),
+            new StepMovementStepConfig(StepMover2D.StepMovementAction.MoveLeftForDuration, 1.5f),
+            new StepMovementStepConfig(StepMover2D.StepMovementAction.StopForDuration, 0.75f));
+        GameObject stepTwo = CreatePrefabInstance(StepPrefabPath, "Step_02", new Vector2(9.2f, 0.5f), new Vector2(3.2f, 0.45f), new Color(0.32f, 0.62f, 0.32f), platforms.transform);
+        ConfigureStepMovement(stepTwo, 0.55f,
+            new StepMovementStepConfig(StepMover2D.StepMovementAction.StopForDuration, 1f),
+            new StepMovementStepConfig(StepMover2D.StepMovementAction.MoveUpForDuration, 1f),
+            new StepMovementStepConfig(StepMover2D.StepMovementAction.MoveDownForDuration, 1f));
+        GameObject stepThree = CreatePrefabInstance(StepPrefabPath, "Step_03", new Vector2(14f, -0.2f), new Vector2(4f, 0.45f), new Color(0.32f, 0.62f, 0.32f), platforms.transform);
+        ConfigureStepMovement(stepThree, 0f);
         CreatePrefabInstance(TallWallPrefabPath, "Tall Wall", new Vector2(17.4f, 0.7f), new Vector2(0.8f, 5.2f), new Color(0.42f, 0.45f, 0.48f), platforms.transform);
         CreatePrefabInstance(TrapPrefabPath, "Trap_01", new Vector2(-1.2f, -1.85f), new Vector2(0.9f, 0.55f), new Color(0.95f, 0.08f, 0.06f), traps.transform);
         CreatePrefabInstance(TrapPrefabPath, "Trap_02", new Vector2(7.2f, -2f), new Vector2(1.2f, 0.45f), new Color(0.95f, 0.08f, 0.06f), traps.transform);
@@ -162,6 +186,48 @@ public static class DemoSceneBuilder
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
         Debug.Log("Demo foreground layers added. These layers are visual-only and do not affect gameplay collisions.");
+    }
+
+    [MenuItem("Tools/Ciga/Apply Demo Step Movement")]
+    public static void ApplyDemoStepMovement()
+    {
+        EnsureFolders();
+        EnsureTags();
+
+        Scene scene = GetOrCreateDemoScene();
+        EditorSceneManager.SetActiveScene(scene);
+        Sprite whiteSprite = CreateSprite("Assets/Demo/WhitePixelTexture.asset");
+        PhysicsMaterial2D noFrictionMaterial = CreateNoFrictionMaterial();
+        EnsureDemoPrefabs(whiteSprite, noFrictionMaterial);
+
+        GameObject[] stepObjects = GameObject.FindGameObjectsWithTag(StepTag);
+        foreach (GameObject stepObject in stepObjects)
+        {
+            if (stepObject.name.Contains("Step_01"))
+            {
+                ConfigureStepMovement(stepObject, 0.8f,
+                    new StepMovementStepConfig(StepMover2D.StepMovementAction.MoveRightForDuration, 1.5f),
+                    new StepMovementStepConfig(StepMover2D.StepMovementAction.StopForDuration, 0.75f),
+                    new StepMovementStepConfig(StepMover2D.StepMovementAction.MoveLeftForDuration, 1.5f),
+                    new StepMovementStepConfig(StepMover2D.StepMovementAction.StopForDuration, 0.75f));
+                continue;
+            }
+
+            if (stepObject.name.Contains("Step_02"))
+            {
+                ConfigureStepMovement(stepObject, 0.55f,
+                    new StepMovementStepConfig(StepMover2D.StepMovementAction.StopForDuration, 1f),
+                    new StepMovementStepConfig(StepMover2D.StepMovementAction.MoveUpForDuration, 1f),
+                    new StepMovementStepConfig(StepMover2D.StepMovementAction.MoveDownForDuration, 1f));
+                continue;
+            }
+
+            ConfigureStepMovement(stepObject, 0f);
+        }
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, ScenePath);
+        Debug.Log("Demo step movement components applied. Each StepMover2D can now be customized per step instance.");
     }
 
     private static Scene GetOrCreateDemoScene()
@@ -347,6 +413,25 @@ public static class DemoSceneBuilder
         collider.size = Vector2.one;
         collider.sharedMaterial = material;
 
+        if (tag == StepTag)
+        {
+            Rigidbody2D body = template.AddComponent<Rigidbody2D>();
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.gravityScale = 0f;
+            body.freezeRotation = true;
+            body.interpolation = RigidbodyInterpolation2D.Interpolate;
+
+            StepMover2D mover = template.AddComponent<StepMover2D>();
+            SerializedObject serializedMover = new SerializedObject(mover);
+            serializedMover.FindProperty("moveSpeed").floatValue = 0f;
+            serializedMover.FindProperty("loopMovementPlan").boolValue = true;
+            serializedMover.FindProperty("passengerMask").FindPropertyRelative("m_Bits").intValue = ~0;
+            SerializedProperty plan = serializedMover.FindProperty("movementPlan");
+            plan.arraySize = 1;
+            SetStepMovementStep(plan.GetArrayElementAtIndex(0), StepMover2D.StepMovementAction.StopForDuration, 1f, 1f);
+            serializedMover.ApplyModifiedPropertiesWithoutUndo();
+        }
+
         PrefabUtility.SaveAsPrefabAsset(template, prefabPath);
         Object.DestroyImmediate(template);
     }
@@ -516,7 +601,54 @@ public static class DemoSceneBuilder
         serializedEnemy.ApplyModifiedPropertiesWithoutUndo();
     }
 
+    private static void ConfigureStepMovement(GameObject stepObject, float moveSpeed, params StepMovementStepConfig[] steps)
+    {
+        if (stepObject == null)
+        {
+            return;
+        }
+
+        StepMover2D mover = stepObject.GetComponent<StepMover2D>();
+        if (mover == null)
+        {
+            mover = stepObject.AddComponent<StepMover2D>();
+        }
+
+        Rigidbody2D body = stepObject.GetComponent<Rigidbody2D>();
+        if (body == null)
+        {
+            body = stepObject.AddComponent<Rigidbody2D>();
+        }
+
+        body.bodyType = RigidbodyType2D.Kinematic;
+        body.gravityScale = 0f;
+        body.freezeRotation = true;
+        body.interpolation = RigidbodyInterpolation2D.Interpolate;
+
+        SerializedObject serializedMover = new SerializedObject(mover);
+        serializedMover.FindProperty("moveSpeed").floatValue = moveSpeed;
+        serializedMover.FindProperty("loopMovementPlan").boolValue = true;
+        serializedMover.FindProperty("passengerMask").FindPropertyRelative("m_Bits").intValue = ~0;
+
+        SerializedProperty plan = serializedMover.FindProperty("movementPlan");
+        plan.arraySize = steps.Length;
+        for (int i = 0; i < steps.Length; i++)
+        {
+            SerializedProperty step = plan.GetArrayElementAtIndex(i);
+            SetStepMovementStep(step, steps[i].Action, steps[i].Duration, steps[i].SpeedMultiplier);
+        }
+
+        serializedMover.ApplyModifiedPropertiesWithoutUndo();
+    }
+
     private static void SetEnemyMovementStep(SerializedProperty step, Enemy2D.EnemyMovementAction action, float duration, float speedMultiplier)
+    {
+        step.FindPropertyRelative("action").enumValueIndex = (int)action;
+        step.FindPropertyRelative("duration").floatValue = duration;
+        step.FindPropertyRelative("speedMultiplier").floatValue = speedMultiplier;
+    }
+
+    private static void SetStepMovementStep(SerializedProperty step, StepMover2D.StepMovementAction action, float duration, float speedMultiplier)
     {
         step.FindPropertyRelative("action").enumValueIndex = (int)action;
         step.FindPropertyRelative("duration").floatValue = duration;

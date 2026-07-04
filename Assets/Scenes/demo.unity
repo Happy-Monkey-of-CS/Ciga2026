@@ -182,6 +182,38 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: moveSpeed
+      value: 0.55
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[1].action
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[2].action
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[1].duration
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[2].duration
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[1].speedMultiplier
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[2].speedMultiplier
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1284,6 +1316,54 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: moveSpeed
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.size
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[0].action
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[1].action
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[3].action
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[0].duration
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[1].duration
+      value: 0.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[2].duration
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[3].duration
+      value: 0.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[1].speedMultiplier
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[2].speedMultiplier
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[3].speedMultiplier
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1809,11 +1889,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4196869555080066664, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 2.14
+      value: 0.86
       objectReference: {fileID: 0}
     - target: {fileID: 4196869555080066664, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.17
+      value: 3.48
       objectReference: {fileID: 0}
     - target: {fileID: 4196869555080066664, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
       propertyPath: m_LocalPosition.z
@@ -1846,6 +1926,54 @@ PrefabInstance:
     - target: {fileID: 4196869555080066664, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: moveSpeed
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.size
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[0].action
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[1].action
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[3].action
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[0].duration
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[1].duration
+      value: 0.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[2].duration
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[3].duration
+      value: 0.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[1].speedMultiplier
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[2].speedMultiplier
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[3].speedMultiplier
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1994,6 +2122,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4196869555080066664, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.size
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
@@ -2171,6 +2303,25 @@ MonoBehaviour:
   strikeAimSprite: {fileID: 21300036, guid: ae297123f091bbf4e8f1835eb98fb293, type: 3}
   restartOnDeath: 1
   deathRestartDelay: 1.5
+  jumpClip: {fileID: 0}
+  landClip: {fileID: 0}
+  attackClip: {fileID: 0}
+  attackHitClip: {fileID: 0}
+  deathClip: {fileID: 0}
+  footstepsLoopClip: {fileID: 0}
+  wallSlideLoopClip: {fileID: 0}
+  wallJumpClip: {fileID: 0}
+  grappleAimStartClip: {fileID: 0}
+  grappleFireClip: {fileID: 0}
+  grappleConnectClip: {fileID: 0}
+  grapplePullSelfLoopClip: {fileID: 0}
+  grapplePullObjectLoopClip: {fileID: 0}
+  grappleLandClip: {fileID: 0}
+  grappleClimbClip: {fileID: 0}
+  strikeAimStartClip: {fileID: 0}
+  strikeFireClip: {fileID: 0}
+  strikeObjectLoopClip: {fileID: 0}
+  strikeImpactClip: {fileID: 0}
   groundMask:
     serializedVersion: 2
     m_Bits: 1
@@ -2985,6 +3136,54 @@ PrefabInstance:
     - target: {fileID: 4196869555080066664, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: moveSpeed
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.size
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[0].action
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[1].action
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[3].action
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[0].duration
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[1].duration
+      value: 0.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[2].duration
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[3].duration
+      value: 0.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[1].speedMultiplier
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[2].speedMultiplier
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6053049366155223211, guid: 03fea564d8ab4e14ba80d93a3772a73e, type: 3}
+      propertyPath: movementPlan.Array.data[3].speedMultiplier
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

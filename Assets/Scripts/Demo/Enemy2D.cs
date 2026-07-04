@@ -194,6 +194,17 @@ namespace Ciga.Demo
             Physics2D.SyncTransforms();
         }
 
+        public void CarryByMovingStep(Vector2 movement)
+        {
+            if (isDefeated || isExternallyCarried || isFalling)
+            {
+                return;
+            }
+
+            transform.position += (Vector3)movement;
+            Physics2D.SyncTransforms();
+        }
+
         public void EndPlatformCarry()
         {
             isExternallyCarried = false;
