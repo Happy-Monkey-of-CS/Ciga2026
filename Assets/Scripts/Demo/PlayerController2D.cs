@@ -154,6 +154,7 @@ namespace Ciga.Demo
         private static readonly int WallSlideHash = Animator.StringToHash("WallSlide");
         private static readonly int BlockHash = Animator.StringToHash("Block");
         private static readonly int DeathHash = Animator.StringToHash("Death");
+        private static readonly int DeathStateHash = Animator.StringToHash("Death");
         private static readonly int NoBloodHash = Animator.StringToHash("noBlood");
         private static readonly int[] AttackHashes =
         {
@@ -565,16 +566,43 @@ namespace Ciga.Demo
 
             PlaySound(deathClip);
 
-            if (animator != null)
-            {
-                animator.SetBool(NoBloodHash, false);
-                animator.SetTrigger(DeathHash);
-            }
+            PlayDeathAnimation();
 
             if (restartOnDeath)
             {
                 StartCoroutine(RestartAfterDelay());
             }
+        }
+
+        private void PlayDeathAnimation()
+        {
+            if (animator == null)
+            {
+                return;
+            }
+
+            animator.enabled = true;
+            animator.speed = defaultAnimatorSpeed;
+            animator.ResetTrigger(JumpHash);
+            for (int i = 0; i < AttackHashes.Length; i++)
+            {
+                animator.ResetTrigger(AttackHashes[i]);
+            }
+
+            animator.SetBool(BlockHash, false);
+            animator.SetBool(WallSlideHash, false);
+            animator.SetBool(NoBloodHash, false);
+            animator.SetInteger(AnimStateHash, 0);
+            animator.SetFloat(AirSpeedYHash, 0f);
+
+            if (animator.HasState(0, DeathStateHash))
+            {
+                animator.Play(DeathStateHash, 0, 0f);
+                animator.Update(0f);
+                return;
+            }
+
+            animator.SetTrigger(DeathHash);
         }
 
         private IEnumerator RestartAfterDelay()
@@ -1397,6 +1425,13 @@ namespace Ciga.Demo
 
         private void ResolveGrappleContact(Collider2D target, bool fromLeft, bool fromAbove, Vector2 landingPoint)
         {
+            if (IsEnemyTarget(target))
+            {
+                StopGrapple();
+                body.velocity = Vector2.zero;
+                return;
+            }
+
             if (IsGrappleWallTarget(target))
             {
                 StartGrappleWallSlide(target, fromLeft);
@@ -1420,6 +1455,11 @@ namespace Ciga.Demo
         private bool IsGrappleStepTarget(Collider2D target)
         {
             return target != null && target.gameObject.tag == GrappleStepTag;
+        }
+
+        private bool IsEnemyTarget(Collider2D target)
+        {
+            return target != null && target.CompareTag(EnemyTag);
         }
 
         private void DropEnemiesStandingOnPulledStep(Collider2D target)
