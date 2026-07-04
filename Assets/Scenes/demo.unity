@@ -6347,7 +6347,7 @@ MonoBehaviour:
   strikeObjectSpeed: 12
   strikeAimSprite: {fileID: 0}
   anchorSprite: {fileID: 21300000, guid: 1830128b4d7962245b483656a34c448b, type: 3}
-  anchorScale: 0.1
+  anchorScale: 0.04
   restartOnDeath: 1
   deathRestartDelay: 1.5
   jumpClip: {fileID: 8300000, guid: 5783f87121f3cb448848c4771695c536, type: 3}
