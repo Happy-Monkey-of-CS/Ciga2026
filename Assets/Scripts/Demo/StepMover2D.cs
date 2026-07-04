@@ -58,7 +58,6 @@ namespace Ciga.Demo
         private float currentStepElapsed;
         private bool movementPlanCompleted;
         private bool externalMovementLocked;
-        private Vector2 bounceDirection;
 
         private void Awake()
         {
@@ -184,65 +183,29 @@ namespace Ciga.Demo
 
         private void Move(Vector2 direction, float speedMultiplier)
         {
-            if (direction.sqrMagnitude <= 0.0001f)
+            if (direction.sqrMagnitude <= 0.0001f || bodyCollider == null)
             {
                 return;
             }
 
             Vector2 normalizedDir = direction.normalized;
-
-            // Use cached bounce direction if active (set after a bounce)
-            if (bounceDirection.sqrMagnitude > 0.0001f)
-            {
-                normalizedDir = bounceDirection.normalized;
-            }
-            else
-            {
-                bounceDirection = normalizedDir;
-            }
-
             Vector2 movement = normalizedDir * (moveSpeed * speedMultiplier * Time.fixedDeltaTime);
 
-            // Check for DemoGround ahead — if hit, reverse
-            if (bounceOnGround && bodyCollider != null)
+            // Horizontal bounce only — reverse X when hitting a DemoGround wall
+            if (bounceOnGround && Mathf.Abs(movement.x) > 0.0001f)
             {
                 Bounds bounds = bodyCollider.bounds;
-                float checkDistance = movement.magnitude + bounceCheckDistance;
-                Vector2 checkSize = new Vector2(
-                    Mathf.Max(0.02f, bounds.size.x * 0.8f),
-                    Mathf.Max(0.02f, bounds.size.y * 0.8f));
+                float sign = Mathf.Sign(movement.x);
+                Vector2 origin = new Vector2(
+                    sign > 0 ? bounds.max.x : bounds.min.x,
+                    bounds.center.y);
+                Vector2 size = new Vector2(0.02f, bounds.size.y * 0.7f);
+                float dist = Mathf.Abs(movement.x) + bounceCheckDistance;
 
-                // Cast in both horizontal and vertical directions
-                bool bounced = false;
-                if (Mathf.Abs(movement.x) > 0.0001f)
+                RaycastHit2D hit = Physics2D.BoxCast(origin, size, 0f, Vector2.right * sign, dist);
+                if (hit.collider != null && hit.collider.CompareTag(groundBounceTag))
                 {
-                    Vector2 checkOrigin = new Vector2(
-                        movement.x > 0 ? bounds.max.x : bounds.min.x,
-                        bounds.center.y);
-                    RaycastHit2D hit = Physics2D.BoxCast(
-                        checkOrigin, checkSize, 0f,
-                        new Vector2(Mathf.Sign(movement.x), 0f), checkDistance);
-                    if (hit.collider != null && hit.collider.CompareTag(groundBounceTag))
-                    {
-                        bounceDirection = new Vector2(-bounceDirection.x, bounceDirection.y);
-                        movement.x = -movement.x;
-                        bounced = true;
-                    }
-                }
-
-                if (!bounced && Mathf.Abs(movement.y) > 0.0001f)
-                {
-                    Vector2 checkOrigin = new Vector2(
-                        bounds.center.x,
-                        movement.y > 0 ? bounds.max.y : bounds.min.y);
-                    RaycastHit2D hit = Physics2D.BoxCast(
-                        checkOrigin, checkSize, 0f,
-                        new Vector2(0f, Mathf.Sign(movement.y)), checkDistance);
-                    if (hit.collider != null && hit.collider.CompareTag(groundBounceTag))
-                    {
-                        bounceDirection = new Vector2(bounceDirection.x, -bounceDirection.y);
-                        movement.y = -movement.y;
-                    }
+                    movement.x = -movement.x;
                 }
             }
 

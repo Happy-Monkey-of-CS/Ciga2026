@@ -104,7 +104,7 @@ public static class DemoSceneBuilder
         Material spriteMaterial = new Material(Shader.Find("Sprites/Default"));
         Sprite whiteSprite = CreateSprite("Assets/Demo/WhitePixelTexture.asset");
         PhysicsMaterial2D noFrictionMaterial = CreateNoFrictionMaterial();
-        Material grappleRopeMaterial = MermaidPlayerAnimationBuilder.CreateChainMaterial(GrappleRopeMaterialPath);
+        Material grappleRopeMaterial = CreateGrappleRopeMaterial();
         EnsureDemoPrefabs(whiteSprite, noFrictionMaterial);
 
         CreateBackground(whiteSprite, world.transform);
@@ -149,6 +149,7 @@ public static class DemoSceneBuilder
         GameObject cameraObject = CreateCamera(player.transform);
 
         CreateSun(whiteSprite, world.transform);
+        CreateVoidZones(world.transform);
         CreateInstructions();
 
         Selection.activeGameObject = player;
@@ -425,11 +426,7 @@ public static class DemoSceneBuilder
             SerializedObject serializedMover = new SerializedObject(mover);
             serializedMover.FindProperty("moveSpeed").floatValue = 0f;
             serializedMover.FindProperty("loopMovementPlan").boolValue = true;
-            SerializedProperty passengerMask = serializedMover.FindProperty("passengerMask");
-            if (passengerMask != null)
-            {
-                passengerMask.FindPropertyRelative("m_Bits").intValue = ~0;
-            }
+            serializedMover.FindProperty("passengerMask").FindPropertyRelative("m_Bits").intValue = ~0;
             SerializedProperty plan = serializedMover.FindProperty("movementPlan");
             plan.arraySize = 1;
             SetStepMovementStep(plan.GetArrayElementAtIndex(0), StepMover2D.StepMovementAction.StopForDuration, 1f, 1f);
@@ -632,11 +629,7 @@ public static class DemoSceneBuilder
         SerializedObject serializedMover = new SerializedObject(mover);
         serializedMover.FindProperty("moveSpeed").floatValue = moveSpeed;
         serializedMover.FindProperty("loopMovementPlan").boolValue = true;
-        SerializedProperty passengerMask = serializedMover.FindProperty("passengerMask");
-        if (passengerMask != null)
-        {
-            passengerMask.FindPropertyRelative("m_Bits").intValue = ~0;
-        }
+        serializedMover.FindProperty("passengerMask").FindPropertyRelative("m_Bits").intValue = ~0;
 
         SerializedProperty plan = serializedMover.FindProperty("movementPlan");
         plan.arraySize = steps.Length;
@@ -670,12 +663,7 @@ public static class DemoSceneBuilder
         player.transform.position = new Vector3(-7f, -1.28f, 0f);
 
         SpriteRenderer renderer = player.AddComponent<SpriteRenderer>();
-        RuntimeAnimatorController mermaidController = MermaidPlayerAnimationBuilder.CreateOrUpdateController();
-        Sprite previewSprite = MermaidPlayerAnimationBuilder.LoadSprite("Idle_1");
-        if (previewSprite == null)
-        {
-            previewSprite = LoadHeroKnightPreviewSprite(sprite);
-        }
+        Sprite previewSprite = LoadHeroKnightPreviewSprite(sprite);
         renderer.sprite = previewSprite;
         renderer.color = Color.white;
         renderer.sortingOrder = 10;
@@ -683,9 +671,7 @@ public static class DemoSceneBuilder
         player.transform.localScale = Vector3.one;
 
         Animator animator = player.AddComponent<Animator>();
-        animator.runtimeAnimatorController = mermaidController != null
-            ? mermaidController
-            : AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(HeroKnightControllerPath);
+        animator.runtimeAnimatorController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(HeroKnightControllerPath);
         animator.applyRootMotion = false;
 
         Rigidbody2D body = player.AddComponent<Rigidbody2D>();
@@ -725,10 +711,10 @@ public static class DemoSceneBuilder
         serializedController.FindProperty("wallSlideFallSpeedMultiplier").floatValue = 0.35f;
         serializedController.FindProperty("grappleAimRadius").floatValue = 5f;
         serializedController.FindProperty("grappleAimMoveSpeedMultiplier").floatValue = 0.15f;
-        serializedController.FindProperty("grappleAimSprite").objectReferenceValue = previewSprite;
+        serializedController.FindProperty("grappleAimSprite").objectReferenceValue = LoadHeroKnightAimSprite(previewSprite);
         serializedController.FindProperty("strikeAimRadius").floatValue = 2f;
         serializedController.FindProperty("strikeObjectSpeed").floatValue = 12f;
-        serializedController.FindProperty("strikeAimSprite").objectReferenceValue = previewSprite;
+        serializedController.FindProperty("strikeAimSprite").objectReferenceValue = LoadHeroKnightStrikeAimSprite(previewSprite);
         serializedController.FindProperty("groundNormalThreshold").floatValue = 0.65f;
         serializedController.FindProperty("grapplePullSpeed").floatValue = 14f;
         serializedController.FindProperty("grappleStopDistance").floatValue = 0.65f;
@@ -801,7 +787,7 @@ public static class DemoSceneBuilder
         camera.orthographic = true;
         camera.orthographicSize = 4.2f;
         camera.clearFlags = CameraClearFlags.SolidColor;
-        camera.backgroundColor = new Color(0.42f, 0.74f, 0.95f);
+        camera.backgroundColor = Color.black;
 
         AudioListener listener = cameraObject.AddComponent<AudioListener>();
         listener.enabled = true;
@@ -816,6 +802,31 @@ public static class DemoSceneBuilder
         GameObject sun = CreateSpriteObject("Sun", sprite, new Vector2(-7f, 3.3f), new Vector2(1.1f, 1.1f), new Color(1f, 0.86f, 0.28f));
         sun.transform.SetParent(parent);
         sun.GetComponent<SpriteRenderer>().sortingOrder = -5;
+    }
+
+    private static void CreateVoidZones(Transform parent)
+    {
+        GameObject voidContainer = new GameObject("Void Zones");
+        voidContainer.transform.SetParent(parent);
+
+        // Bottom void zone — catches player falling off the map
+        CreateVoidZone("Void Bottom", new Vector2(4f, -7f), new Vector2(50f, 3f), voidContainer.transform);
+
+        // Left void zone — catches player falling behind the scrolling view
+        CreateVoidZone("Void Left", new Vector2(-14f, 0f), new Vector2(3f, 30f), voidContainer.transform);
+    }
+
+    private static void CreateVoidZone(string name, Vector2 position, Vector2 size, Transform parent)
+    {
+        GameObject voidZone = new GameObject(name);
+        voidZone.transform.SetParent(parent);
+        voidZone.transform.position = new Vector3(position.x, position.y, 0f);
+
+        BoxCollider2D collider = voidZone.AddComponent<BoxCollider2D>();
+        collider.isTrigger = true;
+        collider.size = size;
+
+        voidZone.AddComponent<VoidZone2D>();
     }
 
     private static void CreateInstructions()

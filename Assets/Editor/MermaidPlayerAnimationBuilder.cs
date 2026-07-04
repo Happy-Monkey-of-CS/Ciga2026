@@ -160,6 +160,7 @@ public static class MermaidPlayerAnimationBuilder
         RuntimeAnimatorController controller = CreateOrUpdateController();
         Sprite idleSprite = LoadSprite("Idle_1");
         Sprite chainSprite = LoadSpriteFromPath(ChainTexturePath);
+        Sprite anchorSprite = LoadSpriteFromPath(AnchorIconPath);
         Material chainMaterial = CreateChainMaterial(MermaidChainMaterialPath);
 
         SpriteRenderer spriteRenderer = player.GetComponent<SpriteRenderer>();
@@ -219,10 +220,34 @@ public static class MermaidPlayerAnimationBuilder
                 grappleRopeSprite.objectReferenceValue = chainSprite;
             }
 
+            SerializedProperty anchorSpriteProperty = serialized.FindProperty("anchorSprite");
+            if (anchorSpriteProperty != null)
+            {
+                anchorSpriteProperty.objectReferenceValue = anchorSprite;
+            }
+
+            SerializedProperty anchorScaleProperty = serialized.FindProperty("anchorScale");
+            if (anchorScaleProperty != null && anchorScaleProperty.floatValue < 1f)
+            {
+                anchorScaleProperty.floatValue = 1f;
+            }
+
             SerializedProperty grappleRopeWidth = serialized.FindProperty("grappleRopeWidth");
             if (grappleRopeWidth != null && grappleRopeWidth.floatValue <= 0.0801f)
             {
                 grappleRopeWidth.floatValue = 0.12f;
+            }
+
+            SerializedProperty grappleRopeSegmentLength = serialized.FindProperty("grappleRopeSegmentLength");
+            if (grappleRopeSegmentLength != null && grappleRopeSegmentLength.floatValue <= 0.0101f)
+            {
+                grappleRopeSegmentLength.floatValue = 0.18f;
+            }
+
+            SerializedProperty grappleOriginOffset = serialized.FindProperty("grappleOriginOffset");
+            if (grappleOriginOffset != null && grappleOriginOffset.vector2Value == Vector2.zero)
+            {
+                grappleOriginOffset.vector2Value = new Vector2(0.15f, -0.35f);
             }
 
             serialized.ApplyModifiedPropertiesWithoutUndo();
@@ -244,6 +269,7 @@ public static class MermaidPlayerAnimationBuilder
         RuntimeAnimatorController controller = CreateOrUpdateController();
         Sprite idleSprite = LoadSprite("Idle_1");
         Sprite chainSprite = LoadSpriteFromPath(ChainTexturePath);
+        Sprite anchorSprite = LoadSpriteFromPath(AnchorIconPath);
         Material chainMaterial = CreateChainMaterial(MermaidChainMaterialPath);
 
         GameObject player = new GameObject("Player");
@@ -328,6 +354,30 @@ public static class MermaidPlayerAnimationBuilder
         if (grappleRopeWidth != null && grappleRopeWidth.floatValue <= 0.0801f)
         {
             grappleRopeWidth.floatValue = 0.12f;
+        }
+
+        SerializedProperty grappleRopeSegmentLength = controllerSerialized.FindProperty("grappleRopeSegmentLength");
+        if (grappleRopeSegmentLength != null && grappleRopeSegmentLength.floatValue <= 0.0101f)
+        {
+            grappleRopeSegmentLength.floatValue = 0.18f;
+        }
+
+        SerializedProperty grappleOriginOffset = controllerSerialized.FindProperty("grappleOriginOffset");
+        if (grappleOriginOffset != null && grappleOriginOffset.vector2Value == Vector2.zero)
+        {
+            grappleOriginOffset.vector2Value = new Vector2(0.15f, -0.35f);
+        }
+
+        SerializedProperty anchorSpriteProperty = controllerSerialized.FindProperty("anchorSprite");
+        if (anchorSpriteProperty != null)
+        {
+            anchorSpriteProperty.objectReferenceValue = anchorSprite;
+        }
+
+        SerializedProperty anchorScaleProperty = controllerSerialized.FindProperty("anchorScale");
+        if (anchorScaleProperty != null && anchorScaleProperty.floatValue < 1f)
+        {
+            anchorScaleProperty.floatValue = 1f;
         }
 
         controllerSerialized.ApplyModifiedPropertiesWithoutUndo();

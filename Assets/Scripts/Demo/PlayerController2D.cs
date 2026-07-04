@@ -51,7 +51,7 @@ namespace Ciga.Demo
         [SerializeField] private Color grappleAimRayColor = new Color(0.35f, 0.85f, 1f, 0.9f);
         [SerializeField] private Color grappleHighlightColor = new Color(1f, 0.9f, 0.2f, 1f);
         [SerializeField] private Sprite grappleAimSprite;
-        [Tooltip("Optional material used by the aim preview line. Assign the Mermaid chain material to preview the real chain while aiming.")]
+        [Tooltip("Optional material used by the fallback aim preview line.")]
         [SerializeField] private Material grappleAimRayMaterial;
         [Tooltip("Sprite image used to build the rope visually. Mermaid/Chain.png should be assigned here.")]
         [SerializeField] private Sprite grappleRopeSprite;
@@ -143,6 +143,10 @@ namespace Ciga.Demo
         private Vector2 movingStepCarryThisFrame;
         private int currentAttack;
 
+        // safe position tracking for void teleport
+        private Vector2 lastSafePosition;
+        private bool hasSafePosition;
+
         // audio state tracking
         private bool wasGrounded;
         private bool wasWallSliding;
@@ -195,10 +199,12 @@ namespace Ciga.Demo
             grappleLine = GetComponent<LineRenderer>();
             body.freezeRotation = true;
             defaultGravityScale = body.gravityScale;
+            lastSafePosition = body.position;
+            hasSafePosition = true;
             if (animator != null)
             {
                 defaultAnimatorSpeed = animator.speed;
-                animator.SetBool(PreviewModeHash, false);
+                SetAnimatorBoolIfPresent(PreviewModeHash, false);
             }
 
             if (grappleLine != null)
@@ -394,6 +400,7 @@ namespace Ciga.Demo
             WrapAtMapEdges();
             UpdateAudioLoops();
             UpdateAudioStateTracking();
+            UpdateSafePosition();
             jumpRequested = false;
         }
 
@@ -466,7 +473,7 @@ namespace Ciga.Demo
             if (anchorSprite == null) return;
             DestroyAnchorIndicator();
             anchorIndicator = new GameObject("AnchorIndicator");
-            anchorIndicator.transform.localScale = Vector3.one * anchorScale;
+            ApplyAnchorIndicatorScale();
             SpriteRenderer sr = anchorIndicator.AddComponent<SpriteRenderer>();
             sr.sprite = anchorSprite;
             sr.sortingOrder = 20;
@@ -487,6 +494,17 @@ namespace Ciga.Demo
             anchorIndicator.transform.position = position;
             float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg + 90f;
             anchorIndicator.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+            ApplyAnchorIndicatorScale();
+        }
+
+        private void ApplyAnchorIndicatorScale()
+        {
+            if (anchorIndicator == null)
+            {
+                return;
+            }
+
+            anchorIndicator.transform.localScale = Vector3.one * Mathf.Max(0.001f, anchorScale);
         }
 
         private void StopAllAudioLoops()
@@ -708,6 +726,39 @@ namespace Ciga.Demo
             UpdateAudioLoops();
         }
 
+        /// <summary>
+        /// Teleport the player back to the last recorded safe position.
+        /// Returns false if no safe position has been recorded yet.
+        /// </summary>
+        public bool TeleportToLastSafePosition()
+        {
+            if (!hasSafePosition || isDead)
+            {
+                return false;
+            }
+
+            OnTeleported();
+            body.position = lastSafePosition;
+            body.velocity = Vector2.zero;
+            Physics2D.SyncTransforms();
+            return true;
+        }
+
+        private void UpdateSafePosition()
+        {
+            if (isDead)
+            {
+                return;
+            }
+
+            // Only record position when grounded and not in special states
+            if (isGrounded && !isClimbing && !isGrappling && !isPullingGrappleObject && !isStrikingObject)
+            {
+                lastSafePosition = body.position;
+                hasSafePosition = true;
+            }
+        }
+
         // Called by the Hero Knight wall-slide animation event.
         public void AE_SlideDust()
         {
@@ -721,13 +772,42 @@ namespace Ciga.Demo
             }
 
             animator.SetBool(GroundedHash, isGrounded);
-            animator.SetBool(PreviewModeHash, false);
+            SetAnimatorBoolIfPresent(PreviewModeHash, false);
             animator.SetBool(WallSlideHash, isWallSliding);
-            animator.SetBool(PullObjectHash, isPullingGrappleObject);
+            SetAnimatorBoolIfPresent(PullObjectHash, isPullingGrappleObject);
             animator.SetFloat(AirSpeedYHash, body.velocity.y);
             animator.SetInteger(AnimStateHash, ShouldPlayRunAnimation() ? 1 : 0);
             UpdateWallSlideFacing();
             UpdateWallJumpFacing();
+        }
+
+        private void SetAnimatorBoolIfPresent(int parameterHash, bool value)
+        {
+            if (animator == null || !HasAnimatorParameter(parameterHash))
+            {
+                return;
+            }
+
+            animator.SetBool(parameterHash, value);
+        }
+
+        private bool HasAnimatorParameter(int parameterHash)
+        {
+            if (animator == null)
+            {
+                return false;
+            }
+
+            AnimatorControllerParameter[] parameters = animator.parameters;
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                if (parameters[i].nameHash == parameterHash)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void UpdateWallSlideFacing()
@@ -2299,6 +2379,7 @@ namespace Ciga.Demo
             grappleClimbAnimationDuration = Mathf.Max(0f, grappleClimbAnimationDuration);
             strikeAimRadius = Mathf.Max(0.1f, strikeAimRadius);
             strikeObjectSpeed = Mathf.Max(0.1f, strikeObjectSpeed);
+            anchorScale = Mathf.Max(0.001f, anchorScale);
             runBlockedCheckDistance = Mathf.Max(0.01f, runBlockedCheckDistance);
             grappleAimCircleSegments = Mathf.Max(12, grappleAimCircleSegments);
         }

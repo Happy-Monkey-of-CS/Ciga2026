@@ -96,7 +96,7 @@ namespace Ciga.Editor
             if (importer == null) return;
 
             importer.textureType = TextureImporterType.Default;
-            importer.filterMode = FilterMode.Point;
+            importer.filterMode = FilterMode.Bilinear;
             importer.wrapMode = TextureWrapMode.Repeat;
             importer.SaveAndReimport();
             Debug.Log("[MermaidAnim] Chain texture configured.");
@@ -142,9 +142,9 @@ namespace Ciga.Editor
                     importer.spriteImportMode = SpriteImportMode.Single;
                     changed = true;
                 }
-                if (importer.filterMode != FilterMode.Point)
+                if (importer.filterMode != FilterMode.Bilinear)
                 {
-                    importer.filterMode = FilterMode.Point;
+                    importer.filterMode = FilterMode.Bilinear;
                     changed = true;
                 }
                 if (importer.spritePixelsPerUnit != 300)

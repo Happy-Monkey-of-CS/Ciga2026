@@ -74,16 +74,9 @@ public static class BossSceneBuilder
         Sprite whiteSprite = CreateSprite(WhiteSpritePath);
         PhysicsMaterial2D noFrictionMaterial = CreateNoFrictionMaterial();
         Material lineMaterial = CreateLineMaterial();
-        Material playerChainMaterial = MermaidPlayerAnimationBuilder.CreateChainMaterial("Assets/Demo/Mermaid/MermaidChainMaterial.mat");
         RuntimeAnimatorController heroController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(HeroKnightControllerPath);
-        RuntimeAnimatorController mermaidPlayerController = MermaidPlayerAnimationBuilder.CreateOrUpdateController();
         RuntimeAnimatorController bossController = CreateBossAnimatorController();
         Sprite heroSprite = LoadHeroSprite();
-        Sprite mermaidPlayerSprite = MermaidPlayerAnimationBuilder.LoadSprite("Idle_1");
-        if (mermaidPlayerSprite == null)
-        {
-            mermaidPlayerSprite = heroSprite;
-        }
 
         GameObject world = new GameObject("World");
         GameObject platforms = new GameObject("Platforms");
@@ -155,9 +148,10 @@ public static class BossSceneBuilder
             new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.StopForDuration, 0.6f),
             new EnemyMovementStepConfig(Enemy2D.EnemyMovementAction.MoveRightUntilEdge, 0f));
 
-        GameObject player = CreatePlayer(mermaidPlayerSprite, mermaidPlayerController != null ? mermaidPlayerController : heroController, noFrictionMaterial, playerChainMaterial);
+        GameObject player = CreatePlayer(heroSprite, heroController, noFrictionMaterial, lineMaterial);
         GameObject boss = CreateBoss(heroSprite, bossController, noFrictionMaterial, lineMaterial, player.GetComponent<PlayerController2D>());
         CreateCamera(player.transform);
+        CreateVoidZones(world.transform);
         CreateInstructions();
 
         Selection.activeGameObject = boss;
@@ -202,13 +196,12 @@ public static class BossSceneBuilder
         Set(serialized, "wrapLeftX", -9.5f);
         Set(serialized, "wrapRightX", 100f);
         Set(serialized, "grappleAimRadius", 6.2f);
-        Set(serialized, "grappleAimSprite", sprite);
         Set(serialized, "strikeAimRadius", 2.5f);
-        Set(serialized, "strikeAimSprite", sprite);
         Set(serialized, "groundMask", new LayerMask { value = 1 << GroundLayer });
         Set(serialized, "grappleMask", new LayerMask { value = 1 << GroundLayer });
         serialized.ApplyModifiedPropertiesWithoutUndo();
 
+        MermaidPlayerAnimationBuilder.ApplyMermaidPlayerVisuals(player);
         return player;
     }
 
@@ -267,7 +260,6 @@ public static class BossSceneBuilder
         Set(serialized, "maxHealth", 100f);
         Set(serialized, "playerAttackDamage", 20f);
         Set(serialized, "struckStepDamage", 35f);
-        Set(serialized, "trapDamage", 35f);
         Set(serialized, "deathDestroyDelay", 1.2f);
         serialized.ApplyModifiedPropertiesWithoutUndo();
 
@@ -402,7 +394,8 @@ public static class BossSceneBuilder
         Camera camera = cameraObject.AddComponent<Camera>();
         camera.orthographic = true;
         camera.orthographicSize = 5.2f;
-        camera.backgroundColor = new Color(0.08f, 0.1f, 0.14f);
+        camera.clearFlags = CameraClearFlags.SolidColor;
+        camera.backgroundColor = Color.black;
         CameraFollow2D follow = cameraObject.AddComponent<CameraFollow2D>();
         follow.SetTarget(target);
         return cameraObject;
@@ -675,5 +668,30 @@ public static class BossSceneBuilder
         {
             property.intValue = value.value;
         }
+    }
+
+    private static void CreateVoidZones(Transform parent)
+    {
+        GameObject voidContainer = new GameObject("Void Zones");
+        voidContainer.transform.SetParent(parent);
+
+        // Bottom void zone — catches player/boss falling off the map
+        CreateVoidZone("Void Bottom", new Vector2(42f, -7f), new Vector2(140f, 3f), voidContainer.transform);
+
+        // Left void zone — catches player falling behind the scrolling view
+        CreateVoidZone("Void Left", new Vector2(-16f, 0f), new Vector2(4f, 40f), voidContainer.transform);
+    }
+
+    private static void CreateVoidZone(string name, Vector2 position, Vector2 size, Transform parent)
+    {
+        GameObject voidZone = new GameObject(name);
+        voidZone.transform.SetParent(parent);
+        voidZone.transform.position = new Vector3(position.x, position.y, 0f);
+
+        BoxCollider2D collider = voidZone.AddComponent<BoxCollider2D>();
+        collider.isTrigger = true;
+        collider.size = size;
+
+        voidZone.AddComponent<VoidZone2D>();
     }
 }
