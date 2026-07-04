@@ -49,7 +49,10 @@ namespace Ciga.Demo
         [SerializeField] private int grappleAimCircleSegments = 72;
         [SerializeField] private Color grappleAimCircleColor = new Color(1f, 1f, 1f, 0.7f);
         [SerializeField] private Color grappleAimRayColor = new Color(0.35f, 0.85f, 1f, 0.9f);
+        [Tooltip("Outline color shown on the current grapple/strike target.")]
         [SerializeField] private Color grappleHighlightColor = new Color(1f, 0.9f, 0.2f, 1f);
+        [Tooltip("World-space thickness of the outline shown on the current grapple/strike target.")]
+        [SerializeField, Min(0.001f)] private float grappleHighlightOutlineThickness = 0.08f;
         [SerializeField] private Sprite grappleAimSprite;
         [Tooltip("Optional material used by the fallback aim preview line.")]
         [SerializeField] private Material grappleAimRayMaterial;
@@ -119,8 +122,7 @@ namespace Ciga.Demo
         private Vector2 aimedGrapplePoint;
         private Collider2D aimedStrikeTarget;
         private Vector2 aimedStrikePoint;
-        private SpriteRenderer highlightedRenderer;
-        private Color highlightedOriginalColor;
+        private OutlineHighlight2D highlightedOutline;
         private Sprite spriteBeforeGrappleAim;
         private bool animatorEnabledBeforeGrappleAim;
         private bool hasGrappleAimVisualOverride;
@@ -1304,33 +1306,43 @@ namespace Ciga.Demo
 
         private void ApplyGrappleHighlight(Collider2D target)
         {
-            SpriteRenderer targetRenderer = target.GetComponent<SpriteRenderer>();
-            if (targetRenderer == highlightedRenderer)
+            if (target == null)
+            {
+                return;
+            }
+
+            OutlineHighlight2D outline = target.GetComponent<OutlineHighlight2D>();
+            if (outline == null)
+            {
+                outline = target.GetComponentInParent<OutlineHighlight2D>();
+            }
+
+            if (outline == null)
+            {
+                outline = target.gameObject.AddComponent<OutlineHighlight2D>();
+            }
+
+            if (outline == highlightedOutline)
             {
                 return;
             }
 
             ClearGrappleHighlight();
 
-            if (targetRenderer == null)
-            {
-                return;
-            }
-
-            highlightedRenderer = targetRenderer;
-            highlightedOriginalColor = targetRenderer.color;
-            targetRenderer.color = grappleHighlightColor;
+            highlightedOutline = outline;
+            highlightedOutline.SetStyle(grappleHighlightColor, grappleHighlightOutlineThickness);
+            highlightedOutline.Show();
         }
 
         private void ClearGrappleHighlight()
         {
-            if (highlightedRenderer == null)
+            if (highlightedOutline == null)
             {
                 return;
             }
 
-            highlightedRenderer.color = highlightedOriginalColor;
-            highlightedRenderer = null;
+            highlightedOutline.Hide();
+            highlightedOutline = null;
         }
 
         private void UpdateGrappleAimRay(Vector2 origin, Vector2 end)
@@ -2372,6 +2384,7 @@ namespace Ciga.Demo
             attackHitSize.x = Mathf.Max(0.1f, attackHitSize.x);
             attackHitSize.y = Mathf.Max(0.1f, attackHitSize.y);
             grappleAimRadius = Mathf.Max(0.1f, grappleAimRadius);
+            grappleHighlightOutlineThickness = Mathf.Max(0.001f, grappleHighlightOutlineThickness);
             grappleRopeWidth = Mathf.Max(0.001f, grappleRopeWidth);
             grappleRopeSegmentLength = Mathf.Max(0.01f, grappleRopeSegmentLength);
             grappleAimMoveSpeedMultiplier = Mathf.Clamp(grappleAimMoveSpeedMultiplier, 0.01f, 1f);
