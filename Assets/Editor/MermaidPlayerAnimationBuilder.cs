@@ -159,6 +159,7 @@ public static class MermaidPlayerAnimationBuilder
 
         RuntimeAnimatorController controller = CreateOrUpdateController();
         Sprite idleSprite = LoadSprite("Idle_1");
+        Sprite chainSprite = LoadSpriteFromPath(ChainTexturePath);
         Material chainMaterial = CreateChainMaterial(MermaidChainMaterialPath);
 
         SpriteRenderer spriteRenderer = player.GetComponent<SpriteRenderer>();
@@ -179,6 +180,15 @@ public static class MermaidPlayerAnimationBuilder
         {
             line.material = chainMaterial;
             line.textureMode = LineTextureMode.Tile;
+            if (line.startWidth <= 0.0801f)
+            {
+                line.startWidth = 0.12f;
+            }
+
+            if (line.endWidth <= 0.0801f)
+            {
+                line.endWidth = 0.12f;
+            }
         }
 
         MonoBehaviour playerController = player.GetComponent("PlayerController2D") as MonoBehaviour;
@@ -195,6 +205,24 @@ public static class MermaidPlayerAnimationBuilder
             if (strikeAimSprite != null)
             {
                 strikeAimSprite.objectReferenceValue = idleSprite;
+            }
+
+            SerializedProperty grappleAimRayMaterial = serialized.FindProperty("grappleAimRayMaterial");
+            if (grappleAimRayMaterial != null)
+            {
+                grappleAimRayMaterial.objectReferenceValue = chainMaterial;
+            }
+
+            SerializedProperty grappleRopeSprite = serialized.FindProperty("grappleRopeSprite");
+            if (grappleRopeSprite != null)
+            {
+                grappleRopeSprite.objectReferenceValue = chainSprite;
+            }
+
+            SerializedProperty grappleRopeWidth = serialized.FindProperty("grappleRopeWidth");
+            if (grappleRopeWidth != null && grappleRopeWidth.floatValue <= 0.0801f)
+            {
+                grappleRopeWidth.floatValue = 0.12f;
             }
 
             serialized.ApplyModifiedPropertiesWithoutUndo();
@@ -215,6 +243,7 @@ public static class MermaidPlayerAnimationBuilder
     {
         RuntimeAnimatorController controller = CreateOrUpdateController();
         Sprite idleSprite = LoadSprite("Idle_1");
+        Sprite chainSprite = LoadSpriteFromPath(ChainTexturePath);
         Material chainMaterial = CreateChainMaterial(MermaidChainMaterialPath);
 
         GameObject player = new GameObject("Player");
@@ -265,8 +294,8 @@ public static class MermaidPlayerAnimationBuilder
             line.positionCount = 2;
             line.enabled = false;
             line.useWorldSpace = true;
-            line.startWidth = 0.06f;
-            line.endWidth = 0.035f;
+            line.startWidth = 0.12f;
+            line.endWidth = 0.12f;
             line.numCapVertices = 2;
             line.alignment = LineAlignment.View;
             line.textureMode = LineTextureMode.Tile;
@@ -281,6 +310,27 @@ public static class MermaidPlayerAnimationBuilder
         {
             EditorUtility.CopySerialized(oldController, playerController);
         }
+
+        SerializedObject controllerSerialized = new SerializedObject(playerController);
+        SerializedProperty grappleRopeSprite = controllerSerialized.FindProperty("grappleRopeSprite");
+        if (grappleRopeSprite != null)
+        {
+            grappleRopeSprite.objectReferenceValue = chainSprite;
+        }
+
+        SerializedProperty grappleAimRayMaterial = controllerSerialized.FindProperty("grappleAimRayMaterial");
+        if (grappleAimRayMaterial != null)
+        {
+            grappleAimRayMaterial.objectReferenceValue = chainMaterial;
+        }
+
+        SerializedProperty grappleRopeWidth = controllerSerialized.FindProperty("grappleRopeWidth");
+        if (grappleRopeWidth != null && grappleRopeWidth.floatValue <= 0.0801f)
+        {
+            grappleRopeWidth.floatValue = 0.12f;
+        }
+
+        controllerSerialized.ApplyModifiedPropertiesWithoutUndo();
 
         ApplyMermaidPlayerVisuals(player);
         return player;
@@ -322,7 +372,11 @@ public static class MermaidPlayerAnimationBuilder
 
     public static Sprite LoadSprite(string spriteName)
     {
-        string path = $"{MermaidFolder}/{spriteName}.png";
+        return LoadSpriteFromPath($"{MermaidFolder}/{spriteName}.png");
+    }
+
+    private static Sprite LoadSpriteFromPath(string path)
+    {
         Sprite directSprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
         if (directSprite != null)
         {
@@ -359,6 +413,7 @@ public static class MermaidPlayerAnimationBuilder
 
         material.shader = Shader.Find("Sprites/Default");
         material.mainTexture = chain;
+        material.mainTextureScale = Vector2.one;
         material.color = Color.white;
         EditorUtility.SetDirty(material);
         AssetDatabase.SaveAssets();
@@ -531,6 +586,12 @@ public static class MermaidPlayerAnimationBuilder
             if (importer.filterMode != FilterMode.Point)
             {
                 importer.filterMode = FilterMode.Point;
+                changed = true;
+            }
+
+            if (path == ChainTexturePath && importer.wrapMode != TextureWrapMode.Repeat)
+            {
+                importer.wrapMode = TextureWrapMode.Repeat;
                 changed = true;
             }
 
