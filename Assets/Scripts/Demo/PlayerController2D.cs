@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Ciga.Demo
 {
@@ -48,6 +49,9 @@ namespace Ciga.Demo
         [SerializeField] private float strikeAimRadius = 2f;
         [SerializeField] private float strikeObjectSpeed = 12f;
         [SerializeField] private Sprite strikeAimSprite;
+        [Header("Death")]
+        [SerializeField] private bool restartOnDeath = true;
+        [SerializeField] private float deathRestartDelay = 1.5f;
         [SerializeField] private LayerMask groundMask = 1;
         [SerializeField] private LayerMask grappleMask = 1;
 
@@ -155,7 +159,7 @@ namespace Ciga.Demo
                 jumpRequested = true;
             }
 
-            if (Input.GetKeyDown(KeyCode.J))
+            if (Input.GetKeyDown(KeyCode.E))
             {
                 Attack();
             }
@@ -190,7 +194,7 @@ namespace Ciga.Demo
                 ReleaseStrikeAim();
             }
 
-            if (Input.GetKeyDown(KeyCode.E))
+            if (Input.GetKeyDown(KeyCode.K))
             {
                 Kill();
             }
@@ -378,6 +382,18 @@ namespace Ciga.Demo
                 animator.SetBool(NoBloodHash, false);
                 animator.SetTrigger(DeathHash);
             }
+
+            if (restartOnDeath)
+            {
+                StartCoroutine(RestartAfterDelay());
+            }
+        }
+
+        private IEnumerator RestartAfterDelay()
+        {
+            float delay = Mathf.Max(0f, deathRestartDelay);
+            yield return new WaitForSeconds(delay);
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 
         // Called by the Hero Knight wall-slide animation event.
