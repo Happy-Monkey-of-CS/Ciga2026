@@ -18,6 +18,7 @@ public static class DemoSceneBuilder
     private const string TrapPrefabPath = "Assets/Prefabs/Trap.prefab";
     private const string HeroKnightSpritePath = "Assets/Hero Knight - Pixel Art/Sprites/HeroKnight.png";
     private const long HeroKnightHurtAimSpriteLocalId = 21300090;
+    private const long HeroKnightAttackAimSpriteLocalId = 21300036;
     private const string HeroKnightControllerPath = "Assets/Hero Knight - Pixel Art/Animations/HeroKnight_AnimController.controller";
     private const int GroundLayer = 0;
     private const int PlayerLayer = 2;
@@ -413,6 +414,9 @@ public static class DemoSceneBuilder
         serializedController.FindProperty("grappleAimRadius").floatValue = 5f;
         serializedController.FindProperty("grappleAimMoveSpeedMultiplier").floatValue = 0.15f;
         serializedController.FindProperty("grappleAimSprite").objectReferenceValue = LoadHeroKnightAimSprite(previewSprite);
+        serializedController.FindProperty("strikeAimRadius").floatValue = 2f;
+        serializedController.FindProperty("strikeObjectSpeed").floatValue = 12f;
+        serializedController.FindProperty("strikeAimSprite").objectReferenceValue = LoadHeroKnightStrikeAimSprite(previewSprite);
         serializedController.FindProperty("groundNormalThreshold").floatValue = 0.65f;
         serializedController.FindProperty("grapplePullSpeed").floatValue = 14f;
         serializedController.FindProperty("grappleStopDistance").floatValue = 0.65f;
@@ -446,6 +450,27 @@ public static class DemoSceneBuilder
             if (asset is Sprite sprite
                 && AssetDatabase.TryGetGUIDAndLocalFileIdentifier(sprite, out string _, out long localId)
                 && localId == HeroKnightHurtAimSpriteLocalId)
+            {
+                return sprite;
+            }
+        }
+
+        return fallback;
+    }
+
+    private static Sprite LoadHeroKnightStrikeAimSprite(Sprite fallback)
+    {
+        return LoadHeroKnightSpriteByLocalId(HeroKnightAttackAimSpriteLocalId, fallback);
+    }
+
+    private static Sprite LoadHeroKnightSpriteByLocalId(long targetLocalId, Sprite fallback)
+    {
+        Object[] assets = AssetDatabase.LoadAllAssetsAtPath(HeroKnightSpritePath);
+        foreach (Object asset in assets)
+        {
+            if (asset is Sprite sprite
+                && AssetDatabase.TryGetGUIDAndLocalFileIdentifier(sprite, out string _, out long localId)
+                && localId == targetLocalId)
             {
                 return sprite;
             }
