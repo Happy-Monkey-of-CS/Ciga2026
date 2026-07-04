@@ -43,6 +43,7 @@ namespace Ciga.Demo
         private int currentStepIndex;
         private float currentStepElapsed;
         private bool movementPlanCompleted;
+        private bool externalMovementLocked;
 
         private void Awake()
         {
@@ -67,7 +68,22 @@ namespace Ciga.Demo
 
         private void FixedUpdate()
         {
+            if (externalMovementLocked)
+            {
+                return;
+            }
+
             UpdateMovementPlan();
+        }
+
+        public void BeginExternalMovement()
+        {
+            externalMovementLocked = true;
+        }
+
+        public void EndExternalMovement()
+        {
+            externalMovementLocked = false;
         }
 
         private void UpdateMovementPlan()
