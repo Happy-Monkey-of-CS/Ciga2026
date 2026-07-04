@@ -484,7 +484,7 @@ namespace Ciga.Demo
 
             if (target != null && !target.isTrigger)
             {
-                if (IsRunBlockedAhead())
+                if (TryGetRunBlocker(out Collider2D blocker) && IsTargetOnSameSideAsBlocker(target, blocker))
                 {
                     StartPullGrappleObject(target, targetPoint);
                     return;
@@ -1327,18 +1327,44 @@ namespace Ciga.Demo
 
         private bool IsRunBlockedAhead()
         {
+            return TryGetRunBlocker(out Collider2D _);
+        }
+
+        private bool TryGetRunBlocker(out Collider2D blocker)
+        {
+            blocker = null;
             Bounds bounds = bodyCollider.bounds;
             float rightX = bounds.max.x - 0.02f;
             float bottom = bounds.min.y + bounds.size.y * 0.2f;
             float center = bounds.center.y;
             float top = bounds.max.y - bounds.size.y * 0.1f;
 
-            return IsRunBlockedAheadFrom(new Vector2(rightX, bottom))
-                || IsRunBlockedAheadFrom(new Vector2(rightX, center))
-                || IsRunBlockedAheadFrom(new Vector2(rightX, top));
+            bool hasBlocker = false;
+            float bestDistance = float.PositiveInfinity;
+            if (TryGetRunBlockerFrom(new Vector2(rightX, bottom), out RaycastHit2D bottomHit) && bottomHit.distance < bestDistance)
+            {
+                blocker = bottomHit.collider;
+                bestDistance = bottomHit.distance;
+                hasBlocker = true;
+            }
+
+            if (TryGetRunBlockerFrom(new Vector2(rightX, center), out RaycastHit2D centerHit) && centerHit.distance < bestDistance)
+            {
+                blocker = centerHit.collider;
+                bestDistance = centerHit.distance;
+                hasBlocker = true;
+            }
+
+            if (TryGetRunBlockerFrom(new Vector2(rightX, top), out RaycastHit2D topHit) && topHit.distance < bestDistance)
+            {
+                blocker = topHit.collider;
+                hasBlocker = true;
+            }
+
+            return hasBlocker;
         }
 
-        private bool IsRunBlockedAheadFrom(Vector2 origin)
+        private bool TryGetRunBlockerFrom(Vector2 origin, out RaycastHit2D blockerHit)
         {
             RaycastHit2D[] hits = Physics2D.RaycastAll(origin, Vector2.right, runBlockedCheckDistance, grappleMask);
             RaycastHit2D bestHit = default;
@@ -1359,7 +1385,27 @@ namespace Ciga.Demo
                 }
             }
 
-            return bestHit.collider != null && bestHit.normal.x <= -groundNormalThreshold;
+            bool isBlocked = bestHit.collider != null && bestHit.normal.x <= -groundNormalThreshold;
+            blockerHit = isBlocked ? bestHit : default;
+            return isBlocked;
+        }
+
+        private bool IsTargetOnSameSideAsBlocker(Collider2D target, Collider2D blocker)
+        {
+            if (target == null || blocker == null)
+            {
+                return false;
+            }
+
+            float playerX = GetGrappleOrigin().x;
+            float targetOffset = target.bounds.center.x - playerX;
+            float blockerOffset = blocker.bounds.center.x - playerX;
+            if (Mathf.Abs(targetOffset) <= 0.01f || Mathf.Abs(blockerOffset) <= 0.01f)
+            {
+                return false;
+            }
+
+            return Mathf.Sign(targetOffset) == Mathf.Sign(blockerOffset);
         }
 
         private void WrapAtMapEdges()
