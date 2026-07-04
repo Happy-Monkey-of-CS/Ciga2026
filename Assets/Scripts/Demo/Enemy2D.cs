@@ -3,6 +3,7 @@ using UnityEngine;
 namespace Ciga.Demo
 {
     [RequireComponent(typeof(Collider2D))]
+    [RequireComponent(typeof(Rigidbody2D))]
     public sealed class Enemy2D : MonoBehaviour
     {
         public enum EnemyMovementAction
@@ -32,17 +33,27 @@ namespace Ciga.Demo
         [SerializeField] private LayerMask groundMask = 1;
         [SerializeField] private float edgeCheckForwardOffset = 0.08f;
         [SerializeField] private float edgeCheckDistance = 0.35f;
+        [SerializeField] private float fallGravityScale = 3f;
+        [SerializeField] private float maxFallSpeed = 10f;
         [SerializeField] private EnemyMovementStep[] movementPlan;
+
+        private static PhysicsMaterial2D runtimeNoFrictionMaterial;
 
         private bool isDefeated;
         private Collider2D bodyCollider;
+        private Rigidbody2D body;
         private int currentStepIndex;
         private float currentStepElapsed;
         private bool movementPlanCompleted;
+        private bool isFalling;
+        private bool isExternallyCarried;
+        private Collider2D ignoredFallingSupport;
 
         private void Awake()
         {
             bodyCollider = GetComponent<Collider2D>();
+            body = GetComponent<Rigidbody2D>();
+            ConfigureBodyForScriptedMovement();
         }
 
         private void OnEnable()
@@ -52,14 +63,29 @@ namespace Ciga.Demo
             movementPlanCompleted = false;
         }
 
-        private void Update()
+        private void FixedUpdate()
         {
+            if (isExternallyCarried)
+            {
+                return;
+            }
+
+            if (isFalling)
+            {
+                UpdatePhysicsFall();
+                return;
+            }
+
             UpdateMovementPlan();
         }
 
         private void Reset()
         {
-            GetComponent<Collider2D>().isTrigger = true;
+            GetComponent<Collider2D>().isTrigger = false;
+            Rigidbody2D resetBody = GetComponent<Rigidbody2D>();
+            resetBody.bodyType = RigidbodyType2D.Kinematic;
+            resetBody.gravityScale = 0f;
+            resetBody.freezeRotation = true;
         }
 
         private void OnTriggerEnter2D(Collider2D other)
@@ -72,6 +98,18 @@ namespace Ciga.Demo
             KillPlayerIfTouched(other);
         }
 
+        private void OnCollisionEnter2D(Collision2D collision)
+        {
+            KillPlayerIfTouched(collision.collider);
+            LandIfSupported(collision);
+        }
+
+        private void OnCollisionStay2D(Collision2D collision)
+        {
+            KillPlayerIfTouched(collision.collider);
+            LandIfSupported(collision);
+        }
+
         public void Defeat()
         {
             if (isDefeated)
@@ -81,6 +119,80 @@ namespace Ciga.Demo
 
             isDefeated = true;
             Destroy(gameObject);
+        }
+
+        public void DropFromSupport()
+        {
+            DropFromSupport(null);
+        }
+
+        public void DropFromSupport(Collider2D ignoredSupport)
+        {
+            if (isDefeated)
+            {
+                return;
+            }
+
+            transform.SetParent(null, true);
+            transform.position += Vector3.down * 0.03f;
+            if (ignoredSupport != null && bodyCollider != null)
+            {
+                Physics2D.IgnoreCollision(bodyCollider, ignoredSupport, true);
+            }
+
+            isExternallyCarried = false;
+            isFalling = true;
+            ignoredFallingSupport = ignoredSupport;
+            body.bodyType = RigidbodyType2D.Dynamic;
+            body.gravityScale = fallGravityScale;
+            body.velocity = new Vector2(0f, Mathf.Min(0f, body.velocity.y));
+        }
+
+        public void BeginPlatformCarry()
+        {
+            if (isDefeated)
+            {
+                return;
+            }
+
+            isFalling = false;
+            ClearIgnoredFallingSupport();
+            ConfigureBodyForScriptedMovement();
+            isExternallyCarried = true;
+        }
+
+        public void MoveWithPlatform(Vector2 movement)
+        {
+            if (isDefeated || !isExternallyCarried)
+            {
+                return;
+            }
+
+            transform.position += (Vector3)movement;
+            Physics2D.SyncTransforms();
+        }
+
+        public void EndPlatformCarry()
+        {
+            isExternallyCarried = false;
+            ConfigureBodyForScriptedMovement();
+        }
+
+        public bool IsStandingOn(Collider2D platform)
+        {
+            if (platform == null)
+            {
+                return false;
+            }
+
+            EnsureBodyCollider();
+            Bounds enemyBounds = bodyCollider.bounds;
+            Bounds platformBounds = platform.bounds;
+            bool horizontallyOverlaps = enemyBounds.max.x > platformBounds.min.x + 0.02f
+                && enemyBounds.min.x < platformBounds.max.x - 0.02f;
+            bool isNearPlatformTop = enemyBounds.min.y >= platformBounds.max.y - 0.25f
+                && enemyBounds.min.y <= platformBounds.max.y + 0.35f;
+            return horizontallyOverlaps && isNearPlatformTop;
         }
 
         private void KillPlayerIfTouched(Collider2D other)
@@ -138,7 +250,7 @@ namespace Ciga.Demo
 
         private void TickTimedStep(float duration)
         {
-            currentStepElapsed += Time.deltaTime;
+            currentStepElapsed += Time.fixedDeltaTime;
             if (currentStepElapsed >= duration)
             {
                 AdvanceMovementStep();
@@ -158,16 +270,21 @@ namespace Ciga.Demo
 
         private void MoveHorizontal(float direction, float speedMultiplier)
         {
-            float distance = direction * moveSpeed * speedMultiplier * Time.deltaTime;
-            transform.position += new Vector3(distance, 0f, 0f);
+            Vector2 targetPosition = body.position + Vector2.right * (direction * moveSpeed * speedMultiplier * Time.fixedDeltaTime);
+            body.MovePosition(targetPosition);
+        }
+
+        private void UpdatePhysicsFall()
+        {
+            if (body.velocity.y < -maxFallSpeed)
+            {
+                body.velocity = new Vector2(body.velocity.x, -maxFallSpeed);
+            }
         }
 
         private bool HasGroundAhead(float direction)
         {
-            if (bodyCollider == null)
-            {
-                bodyCollider = GetComponent<Collider2D>();
-            }
+            EnsureBodyCollider();
 
             Bounds bounds = bodyCollider.bounds;
             float x = direction < 0f
@@ -176,6 +293,89 @@ namespace Ciga.Demo
             Vector2 origin = new Vector2(x, bounds.min.y + 0.05f);
             RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, edgeCheckDistance, groundMask);
             return hit.collider != null && hit.normal.y > 0.5f;
+        }
+
+        private void LandIfSupported(Collision2D collision)
+        {
+            if (!isFalling || collision.collider == ignoredFallingSupport || !IsGroundLayer(collision.collider.gameObject.layer))
+            {
+                return;
+            }
+
+            for (int i = 0; i < collision.contactCount; i++)
+            {
+                ContactPoint2D contact = collision.GetContact(i);
+                if (contact.normal.y > 0.5f)
+                {
+                    isFalling = false;
+                    ClearIgnoredFallingSupport();
+                    ConfigureBodyForScriptedMovement();
+                    return;
+                }
+            }
+        }
+
+        private void EnsureBodyCollider()
+        {
+            if (bodyCollider == null)
+            {
+                bodyCollider = GetComponent<Collider2D>();
+            }
+        }
+
+        private void ConfigureBodyForScriptedMovement()
+        {
+            EnsureBodyCollider();
+            if (body == null)
+            {
+                body = GetComponent<Rigidbody2D>();
+                if (body == null)
+                {
+                    body = gameObject.AddComponent<Rigidbody2D>();
+                }
+            }
+
+            bodyCollider.isTrigger = false;
+            if (bodyCollider.sharedMaterial == null)
+            {
+                bodyCollider.sharedMaterial = GetRuntimeNoFrictionMaterial();
+            }
+
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.gravityScale = 0f;
+            body.velocity = Vector2.zero;
+            body.angularVelocity = 0f;
+            body.freezeRotation = true;
+            body.interpolation = RigidbodyInterpolation2D.Interpolate;
+        }
+
+        private static PhysicsMaterial2D GetRuntimeNoFrictionMaterial()
+        {
+            if (runtimeNoFrictionMaterial == null)
+            {
+                runtimeNoFrictionMaterial = new PhysicsMaterial2D("EnemyRuntimeNoFriction2D")
+                {
+                    friction = 0f,
+                    bounciness = 0f
+                };
+            }
+
+            return runtimeNoFrictionMaterial;
+        }
+
+        private void ClearIgnoredFallingSupport()
+        {
+            if (ignoredFallingSupport != null && bodyCollider != null)
+            {
+                Physics2D.IgnoreCollision(bodyCollider, ignoredFallingSupport, false);
+            }
+
+            ignoredFallingSupport = null;
+        }
+
+        private bool IsGroundLayer(int layer)
+        {
+            return (groundMask.value & (1 << layer)) != 0;
         }
 
         private void AdvanceMovementStep()
@@ -202,6 +402,8 @@ namespace Ciga.Demo
             moveSpeed = Mathf.Max(0f, moveSpeed);
             edgeCheckForwardOffset = Mathf.Max(0f, edgeCheckForwardOffset);
             edgeCheckDistance = Mathf.Max(0.01f, edgeCheckDistance);
+            fallGravityScale = Mathf.Max(0.01f, fallGravityScale);
+            maxFallSpeed = Mathf.Max(0.01f, maxFallSpeed);
         }
     }
 }

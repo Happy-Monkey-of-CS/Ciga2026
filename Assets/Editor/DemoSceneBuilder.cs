@@ -304,7 +304,7 @@ public static class DemoSceneBuilder
         CreatePlatformPrefab(StepPrefabPath, "Step", StepTag, new Color(0.32f, 0.62f, 0.32f), sprite, material);
         CreatePlatformPrefab(TallWallPrefabPath, "TallWall", WallTag, new Color(0.42f, 0.45f, 0.48f), sprite, material);
         CreateTrapPrefab(sprite);
-        CreateEnemyPrefab(sprite);
+        CreateEnemyPrefab(sprite, material);
         AssetDatabase.SaveAssets();
     }
 
@@ -338,7 +338,7 @@ public static class DemoSceneBuilder
         Object.DestroyImmediate(template);
     }
 
-    private static void CreateEnemyPrefab(Sprite sprite)
+    private static void CreateEnemyPrefab(Sprite sprite, PhysicsMaterial2D material)
     {
         GameObject template = CreateSpriteObject("Enemy", sprite, Vector2.zero, Vector2.one, new Color(0.55f, 0.12f, 0.82f));
         template.tag = EnemyTag;
@@ -346,12 +346,19 @@ public static class DemoSceneBuilder
 
         BoxCollider2D collider = template.AddComponent<BoxCollider2D>();
         collider.size = Vector2.one;
-        collider.isTrigger = true;
+        collider.isTrigger = false;
+        collider.sharedMaterial = material;
+        Rigidbody2D body = template.AddComponent<Rigidbody2D>();
+        body.bodyType = RigidbodyType2D.Kinematic;
+        body.gravityScale = 0f;
+        body.freezeRotation = true;
+        body.interpolation = RigidbodyInterpolation2D.Interpolate;
         Enemy2D enemy = template.AddComponent<Enemy2D>();
         SerializedObject serializedEnemy = new SerializedObject(enemy);
         serializedEnemy.FindProperty("moveSpeed").floatValue = 1f;
         serializedEnemy.FindProperty("loopMovementPlan").boolValue = true;
         serializedEnemy.FindProperty("groundMask").FindPropertyRelative("m_Bits").intValue = 1 << GroundLayer;
+        serializedEnemy.FindProperty("fallGravityScale").floatValue = 3f;
         SerializedProperty plan = serializedEnemy.FindProperty("movementPlan");
         plan.arraySize = 3;
         SetEnemyMovementStep(plan.GetArrayElementAtIndex(0), Enemy2D.EnemyMovementAction.MoveLeftUntilEdge, 0f, 1f);

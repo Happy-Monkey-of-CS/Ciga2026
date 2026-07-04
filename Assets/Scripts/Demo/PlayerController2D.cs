@@ -9,6 +9,7 @@ namespace Ciga.Demo
     public sealed class PlayerController2D : MonoBehaviour
     {
         private const string GroundTag = "DemoGround";
+        private const string GrappleStepTag = "GrappleStep";
         private const string GrappleWallTag = "GrappleWall";
         private const string EnemyTag = "Enemy";
         private const float PulledObjectSkinWidth = 0.01f;
@@ -93,9 +94,11 @@ namespace Ciga.Demo
         private int currentAttack;
         private readonly RaycastHit2D[] pulledObjectCastResults = new RaycastHit2D[16];
         private readonly Collider2D[] attackOverlapResults = new Collider2D[12];
+        private readonly List<Enemy2D> enemyPlatformResults = new List<Enemy2D>();
         private readonly Collider2D[] pulledObjectOverlapResults = new Collider2D[16];
         private readonly List<Collider2D> initialPulledObjectOverlaps = new List<Collider2D>();
         private readonly List<Collider2D> initialStruckObjectOverlaps = new List<Collider2D>();
+        private readonly List<Enemy2D> carriedEnemiesOnStruckStep = new List<Enemy2D>();
 
         private static readonly int AnimStateHash = Animator.StringToHash("AnimState");
         private static readonly int GroundedHash = Animator.StringToHash("Grounded");
@@ -304,7 +307,7 @@ namespace Ciga.Demo
             isForcedWallSliding = false;
         }
 
-        private void Attack()
+        private void Attack(bool dealDamage = true)
         {
             if (animator == null)
             {
@@ -319,7 +322,10 @@ namespace Ciga.Demo
             animator.SetTrigger(AttackHashes[currentAttack]);
             currentAttack = (currentAttack + 1) % AttackHashes.Length;
             timeSinceAttack = 0f;
-            HitEnemiesInAttackRange();
+            if (dealDamage)
+            {
+                HitEnemiesInAttackRange();
+            }
         }
 
         private void HitEnemiesInAttackRange()
@@ -639,6 +645,7 @@ namespace Ciga.Demo
             StopStrikeObject();
             pulledGrappleTarget = target;
             pulledGrappleLocalPoint = target.transform.InverseTransformPoint(anchorPoint);
+            DropEnemiesStandingOnPulledStep(target);
             CacheInitialPulledObjectOverlaps(target);
             isPullingGrappleObject = true;
 
@@ -899,6 +906,7 @@ namespace Ciga.Demo
             struckTarget = target;
             struckDirection = direction.normalized;
             CacheInitialStruckObjectOverlaps(target);
+            CacheEnemiesCarriedByStruckStep(target);
             isStrikingObject = true;
         }
 
@@ -919,6 +927,7 @@ namespace Ciga.Demo
             }
 
             struckTarget.transform.position += (Vector3)movement;
+            MoveEnemiesCarriedByStruckStep(movement);
             Physics2D.SyncTransforms();
 
             if (willHitCollider || HasStruckObjectHitNewCollider())
@@ -1013,7 +1022,7 @@ namespace Ciga.Demo
 
             if (wasAiming)
             {
-                Attack();
+                Attack(false);
             }
 
             if (target != null && !target.isTrigger && !IsGrappleWallTarget(target))
@@ -1077,6 +1086,119 @@ namespace Ciga.Demo
             return target != null && target.gameObject.tag == GrappleWallTag;
         }
 
+        private bool IsGrappleStepTarget(Collider2D target)
+        {
+            return target != null && target.gameObject.tag == GrappleStepTag;
+        }
+
+        private void DropEnemiesStandingOnPulledStep(Collider2D target)
+        {
+            if (!IsGrappleStepTarget(target))
+            {
+                return;
+            }
+
+            int count = FindEnemiesStandingOnPlatform(target);
+            for (int i = 0; i < count; i++)
+            {
+                Enemy2D enemy = enemyPlatformResults[i];
+                if (enemy != null)
+                {
+                    enemy.DropFromSupport(target);
+                }
+            }
+        }
+
+        private void CacheEnemiesCarriedByStruckStep(Collider2D target)
+        {
+            EndEnemiesCarriedByStruckStep();
+            if (!IsGrappleStepTarget(target))
+            {
+                return;
+            }
+
+            int count = FindEnemiesStandingOnPlatform(target);
+            for (int i = 0; i < count; i++)
+            {
+                Enemy2D enemy = enemyPlatformResults[i];
+                if (enemy == null || carriedEnemiesOnStruckStep.Contains(enemy))
+                {
+                    continue;
+                }
+
+                enemy.BeginPlatformCarry();
+                carriedEnemiesOnStruckStep.Add(enemy);
+            }
+        }
+
+        private void MoveEnemiesCarriedByStruckStep(Vector2 movement)
+        {
+            for (int i = carriedEnemiesOnStruckStep.Count - 1; i >= 0; i--)
+            {
+                Enemy2D enemy = carriedEnemiesOnStruckStep[i];
+                if (enemy == null)
+                {
+                    carriedEnemiesOnStruckStep.RemoveAt(i);
+                    continue;
+                }
+
+                enemy.MoveWithPlatform(movement);
+            }
+        }
+
+        private void EndEnemiesCarriedByStruckStep()
+        {
+            for (int i = carriedEnemiesOnStruckStep.Count - 1; i >= 0; i--)
+            {
+                Enemy2D enemy = carriedEnemiesOnStruckStep[i];
+                if (enemy != null)
+                {
+                    enemy.EndPlatformCarry();
+                }
+            }
+
+            carriedEnemiesOnStruckStep.Clear();
+        }
+
+        private int FindEnemiesStandingOnPlatform(Collider2D platform)
+        {
+            enemyPlatformResults.Clear();
+            Enemy2D[] enemies = FindObjectsByType<Enemy2D>(FindObjectsSortMode.None);
+            for (int i = 0; i < enemies.Length; i++)
+            {
+                Enemy2D enemy = enemies[i];
+                if (enemy == null)
+                {
+                    continue;
+                }
+
+                if (!enemy.IsStandingOn(platform))
+                {
+                    continue;
+                }
+
+                enemyPlatformResults.Add(enemy);
+            }
+
+            return enemyPlatformResults.Count;
+        }
+
+        private static Enemy2D GetEnemyFromCollider(Collider2D collider)
+        {
+            if (collider == null || !collider.CompareTag(EnemyTag))
+            {
+                return null;
+            }
+
+            Enemy2D enemy = collider.GetComponent<Enemy2D>();
+            return enemy != null ? enemy : collider.GetComponentInParent<Enemy2D>();
+        }
+
+        private bool ShouldIgnoreStepPassengerCollider(Collider2D movingTarget, Collider2D other)
+        {
+            return IsGrappleStepTarget(movingTarget) && GetEnemyFromCollider(other) != null;
+        }
+
         private void StopGrapple()
         {
             isGrappling = false;
@@ -1102,6 +1224,7 @@ namespace Ciga.Demo
 
         private void StopStrikeObject()
         {
+            EndEnemiesCarriedByStruckStep();
             isStrikingObject = false;
             struckTarget = null;
             struckDirection = Vector2.zero;
@@ -1513,6 +1636,11 @@ namespace Ciga.Demo
                     continue;
                 }
 
+                if (ShouldIgnoreStepPassengerCollider(pulledGrappleTarget, overlap))
+                {
+                    continue;
+                }
+
                 if (overlap != bodyCollider && initialPulledObjectOverlaps.Contains(overlap))
                 {
                     continue;
@@ -1562,6 +1690,11 @@ namespace Ciga.Demo
                     continue;
                 }
 
+                if (ShouldIgnoreStepPassengerCollider(pulledGrappleTarget, hit.collider))
+                {
+                    continue;
+                }
+
                 if (hit.distance < nearestDistance)
                 {
                     nearestDistance = hit.distance;
@@ -1592,6 +1725,12 @@ namespace Ciga.Demo
             {
                 Collider2D overlap = initialPulledObjectOverlaps[i];
                 if (overlap == null)
+                {
+                    initialPulledObjectOverlaps.RemoveAt(i);
+                    continue;
+                }
+
+                if (ShouldIgnoreStepPassengerCollider(pulledGrappleTarget, overlap))
                 {
                     initialPulledObjectOverlaps.RemoveAt(i);
                     continue;
@@ -1655,6 +1794,11 @@ namespace Ciga.Demo
                     continue;
                 }
 
+                if (ShouldIgnoreStepPassengerCollider(struckTarget, overlap))
+                {
+                    continue;
+                }
+
                 if (overlap != bodyCollider && initialStruckObjectOverlaps.Contains(overlap))
                 {
                     continue;
@@ -1704,6 +1848,11 @@ namespace Ciga.Demo
                     continue;
                 }
 
+                if (ShouldIgnoreStepPassengerCollider(struckTarget, hit.collider))
+                {
+                    continue;
+                }
+
                 if (hit.distance < nearestDistance)
                 {
                     nearestDistance = hit.distance;
@@ -1734,6 +1883,12 @@ namespace Ciga.Demo
             {
                 Collider2D overlap = initialStruckObjectOverlaps[i];
                 if (overlap == null)
+                {
+                    initialStruckObjectOverlaps.RemoveAt(i);
+                    continue;
+                }
+
+                if (ShouldIgnoreStepPassengerCollider(struckTarget, overlap))
                 {
                     initialStruckObjectOverlaps.RemoveAt(i);
                     continue;
