@@ -125,6 +125,7 @@ namespace Ciga.Demo
         private bool isWallJumpControlling;
         private float wallJumpHorizontalVelocity;
         private int wallJumpStartWallSide;
+        private Vector2 movingStepCarryThisFrame;
         private int currentAttack;
 
         // audio state tracking
@@ -360,6 +361,7 @@ namespace Ciga.Demo
 
             UpdateAnimator();
             UpdateGrappleLine();
+            ApplyMovingStepCarry();
             WrapAtMapEdges();
             UpdateAudioLoops();
             UpdateAudioStateTracking();
@@ -688,6 +690,28 @@ namespace Ciga.Demo
             }
 
             return true;
+        }
+
+        public void CarryByMovingStep(Vector2 movement)
+        {
+            if (isDead || isClimbing || isGrappling || isPullingGrappleObject || isStrikingObject)
+            {
+                return;
+            }
+
+            movingStepCarryThisFrame += movement;
+        }
+
+        private void ApplyMovingStepCarry()
+        {
+            if (movingStepCarryThisFrame.sqrMagnitude <= 0.000001f)
+            {
+                return;
+            }
+
+            body.position += movingStepCarryThisFrame;
+            movingStepCarryThisFrame = Vector2.zero;
+            Physics2D.SyncTransforms();
         }
 
         private void ApplyWallSlideGravity()

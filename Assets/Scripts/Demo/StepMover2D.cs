@@ -168,10 +168,9 @@ namespace Ciga.Demo
                 }
 
                 Collider2D playerCollider = player.GetComponent<Collider2D>();
-                Rigidbody2D playerBody = player.GetComponent<Rigidbody2D>();
-                if (playerCollider != null && playerBody != null && IsStandingOnStep(playerCollider))
+                if (playerCollider != null && IsStandingOnStep(playerCollider))
                 {
-                    playerBody.MovePosition(playerBody.position + movement);
+                    player.CarryByMovingStep(movement);
                 }
             }
         }
