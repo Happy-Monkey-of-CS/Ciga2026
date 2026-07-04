@@ -53,6 +53,7 @@ public static class BossSceneBuilder
     private const string BossIdleClipPath = "Assets/Hero Knight - Pixel Art/Animations/HeroKnight_Idle.anim";
     private const string BossRunClipPath = "Assets/Hero Knight - Pixel Art/Animations/HeroKnight_Run.anim";
     private const string BossAttackClipPath = "Assets/Hero Knight - Pixel Art/Animations/HeroKnight_Attack1.anim";
+    private const string BossDeathClipPath = "Assets/Hero Knight - Pixel Art/Animations/HeroKnight_Death.anim";
     private const int GroundLayer = 0;
     private const int PlayerLayer = 2;
     private const string GroundTag = "DemoGround";
@@ -254,6 +255,10 @@ public static class BossSceneBuilder
         Set(serialized, "burstCooldown", 2.1f);
         Set(serialized, "emergencyRepositionGap", 17f);
         Set(serialized, "emergencyRepositionDistance", 5.6f);
+        Set(serialized, "maxHealth", 100f);
+        Set(serialized, "playerAttackDamage", 20f);
+        Set(serialized, "struckStepDamage", 35f);
+        Set(serialized, "deathDestroyDelay", 1.2f);
         serialized.ApplyModifiedPropertiesWithoutUndo();
 
         return boss;
@@ -510,6 +515,7 @@ public static class BossSceneBuilder
         controller = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(BossAnimatorControllerPath);
         controller.AddParameter("IsMoving", UnityEngine.AnimatorControllerParameterType.Bool);
         controller.AddParameter("Attack", UnityEngine.AnimatorControllerParameterType.Trigger);
+        controller.AddParameter("Death", UnityEngine.AnimatorControllerParameterType.Trigger);
 
         UnityEditor.Animations.AnimatorControllerLayer layer = controller.layers[0];
         AnimatorStateMachine stateMachine = layer.stateMachine;
@@ -517,6 +523,7 @@ public static class BossSceneBuilder
         AnimationClip idleClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(BossIdleClipPath);
         AnimationClip runClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(BossRunClipPath);
         AnimationClip attackClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(BossAttackClipPath);
+        AnimationClip deathClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(BossDeathClipPath);
 
         AnimatorState idleState = stateMachine.AddState("Idle", new Vector3(240f, 80f, 0f));
         idleState.motion = idleClip;
@@ -524,6 +531,8 @@ public static class BossSceneBuilder
         runState.motion = runClip;
         AnimatorState attackState = stateMachine.AddState("Attack", new Vector3(360f, 220f, 0f));
         attackState.motion = attackClip;
+        AnimatorState deathState = stateMachine.AddState("Death", new Vector3(600f, 220f, 0f));
+        deathState.motion = deathClip;
 
         stateMachine.defaultState = idleState;
 
@@ -541,6 +550,13 @@ public static class BossSceneBuilder
         ConfigureAttackTransition(idleToAttack);
         AnimatorStateTransition runToAttack = runState.AddTransition(attackState);
         ConfigureAttackTransition(runToAttack);
+
+        AnimatorStateTransition idleToDeath = idleState.AddTransition(deathState);
+        ConfigureDeathTransition(idleToDeath);
+        AnimatorStateTransition runToDeath = runState.AddTransition(deathState);
+        ConfigureDeathTransition(runToDeath);
+        AnimatorStateTransition attackToDeath = attackState.AddTransition(deathState);
+        ConfigureDeathTransition(attackToDeath);
 
         AnimatorStateTransition attackToIdle = attackState.AddTransition(idleState);
         attackToIdle.hasExitTime = true;
@@ -564,6 +580,13 @@ public static class BossSceneBuilder
         transition.hasExitTime = false;
         transition.duration = 0.02f;
         transition.AddCondition(AnimatorConditionMode.If, 0f, "Attack");
+    }
+
+    private static void ConfigureDeathTransition(AnimatorStateTransition transition)
+    {
+        transition.hasExitTime = false;
+        transition.duration = 0.02f;
+        transition.AddCondition(AnimatorConditionMode.If, 0f, "Death");
     }
 
     private static void EnsureFolders()

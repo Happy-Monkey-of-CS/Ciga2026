@@ -51,6 +51,13 @@ namespace Ciga.Demo
         [SerializeField] private float meleeCooldown = 1.4f;
         [SerializeField] private float contactAttackRecovery = 0.25f;
 
+        [Header("Health")]
+        [SerializeField] private float maxHealth = 100f;
+        [SerializeField] private float playerAttackDamage = 20f;
+        [SerializeField] private float struckStepDamage = 35f;
+        [SerializeField] private float hitFlashDuration = 0.12f;
+        [SerializeField] private float deathDestroyDelay = 1.2f;
+
         [Header("Grapple")]
         [SerializeField] private float grappleRange = 8f;
         [SerializeField] private float grappleMoveSpeed = 11f;
@@ -72,6 +79,7 @@ namespace Ciga.Demo
 
         private static readonly int BossIsMovingHash = Animator.StringToHash("IsMoving");
         private static readonly int BossAttackHash = Animator.StringToHash("Attack");
+        private static readonly int BossDeathHash = Animator.StringToHash("Death");
 
         private readonly RaycastHit2D[] objectCastResults = new RaycastHit2D[12];
         private readonly Collider2D[] targetOverlapResults = new Collider2D[24];
@@ -86,6 +94,10 @@ namespace Ciga.Demo
         private bool isGrounded;
         private bool isBurstCatchingUp;
         private bool isContactAttacking;
+        private bool isDefeated;
+        private float currentHealth;
+        private Coroutine hitFlashRoutine;
+        private Color originalColor = Color.white;
         private float nextDecisionTime;
         private float nextJumpTime;
         private float nextMeleeTime;
@@ -113,6 +125,12 @@ namespace Ciga.Demo
                 abilityLine.enabled = false;
                 abilityLine.positionCount = 2;
                 abilityLine.useWorldSpace = true;
+            }
+
+            currentHealth = maxHealth;
+            if (spriteRenderer != null)
+            {
+                originalColor = spriteRenderer.color;
             }
         }
 
@@ -895,6 +913,88 @@ namespace Ciga.Demo
             isBusy = false;
         }
 
+        public float PlayerAttackDamage => playerAttackDamage;
+        public float StruckStepDamage => struckStepDamage;
+
+        public void TakePlayerAttackDamage()
+        {
+            TakeDamage(playerAttackDamage);
+        }
+
+        public void TakeStruckStepDamage()
+        {
+            TakeDamage(struckStepDamage);
+        }
+
+        public void TakeDamage(float damage)
+        {
+            if (isDefeated || damage <= 0f)
+            {
+                return;
+            }
+
+            currentHealth = Mathf.Max(0f, currentHealth - damage);
+            if (hitFlashRoutine != null)
+            {
+                StopCoroutine(hitFlashRoutine);
+            }
+
+            hitFlashRoutine = StartCoroutine(FlashHitColor());
+
+            if (currentHealth <= 0f)
+            {
+                Defeat();
+            }
+        }
+
+        private IEnumerator FlashHitColor()
+        {
+            if (spriteRenderer == null)
+            {
+                yield break;
+            }
+
+            spriteRenderer.color = Color.white;
+            yield return new WaitForSeconds(hitFlashDuration);
+            spriteRenderer.color = originalColor;
+            hitFlashRoutine = null;
+        }
+
+        private void Defeat()
+        {
+            if (isDefeated)
+            {
+                return;
+            }
+
+            isDefeated = true;
+            StopAllCoroutines();
+            HideLine();
+            body.velocity = Vector2.zero;
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.simulated = false;
+
+            if (bodyCollider != null)
+            {
+                bodyCollider.enabled = false;
+            }
+
+            if (animator != null)
+            {
+                animator.SetBool(BossIsMovingHash, false);
+                animator.ResetTrigger(BossAttackHash);
+                animator.SetTrigger(BossDeathHash);
+            }
+
+            StartCoroutine(DestroyAfterDeathAnimation());
+        }
+
+        private IEnumerator DestroyAfterDeathAnimation()
+        {
+            yield return new WaitForSeconds(deathDestroyDelay);
+            Destroy(gameObject);
+        }
+
         private void TriggerAttackAnimation()
         {
             if (animator != null)
@@ -973,6 +1073,11 @@ namespace Ciga.Demo
             emergencyVerticalGap = Mathf.Max(1f, emergencyVerticalGap);
             meleeRange = Mathf.Max(0.1f, meleeRange);
             contactAttackRecovery = Mathf.Max(0f, contactAttackRecovery);
+            maxHealth = Mathf.Max(1f, maxHealth);
+            playerAttackDamage = Mathf.Max(0f, playerAttackDamage);
+            struckStepDamage = Mathf.Max(0f, struckStepDamage);
+            hitFlashDuration = Mathf.Max(0f, hitFlashDuration);
+            deathDestroyDelay = Mathf.Max(0f, deathDestroyDelay);
             grappleRange = Mathf.Max(0.1f, grappleRange);
             grappleStepLandingSkin = Mathf.Max(0.005f, grappleStepLandingSkin);
             objectAbilityRange = Mathf.Max(0.1f, objectAbilityRange);
