@@ -94,6 +94,7 @@ public static class DemoSceneBuilder
         EnsureDemoPrefabs(whiteSprite, noFrictionMaterial);
 
         CreateBackground(whiteSprite, world.transform);
+        CreateForeground(whiteSprite, world.transform);
         CreateGround("Ground", new Vector2(4f, -2.4f), new Vector2(34f, 1f), new Color(0.2f, 0.5f, 0.25f), whiteSprite, noFrictionMaterial, platforms.transform);
         CreatePrefabInstance(StepPrefabPath, "Step_01", new Vector2(5.2f, -0.8f), new Vector2(3f, 0.45f), new Color(0.32f, 0.62f, 0.32f), platforms.transform);
         CreatePrefabInstance(StepPrefabPath, "Step_02", new Vector2(9.2f, 0.5f), new Vector2(3.2f, 0.45f), new Color(0.32f, 0.62f, 0.32f), platforms.transform);
@@ -134,6 +135,33 @@ public static class DemoSceneBuilder
 
         Object.DestroyImmediate(spriteMaterial);
         _ = cameraObject;
+    }
+
+    [MenuItem("Tools/Ciga/Add Demo Foreground Layers")]
+    public static void AddForegroundLayersToDemoScene()
+    {
+        EnsureFolders();
+
+        Scene scene = GetOrCreateDemoScene();
+        EditorSceneManager.SetActiveScene(scene);
+        Sprite whiteSprite = CreateSprite("Assets/Demo/WhitePixelTexture.asset");
+
+        GameObject world = GameObject.Find("World");
+        if (world == null)
+        {
+            world = new GameObject("World");
+        }
+
+        Transform existingForeground = world.transform.Find("Foreground Decorative Layers");
+        if (existingForeground != null)
+        {
+            Object.DestroyImmediate(existingForeground.gameObject);
+        }
+
+        CreateForeground(whiteSprite, world.transform);
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, ScenePath);
+        Debug.Log("Demo foreground layers added. These layers are visual-only and do not affect gameplay collisions.");
     }
 
     private static Scene GetOrCreateDemoScene()
@@ -378,6 +406,34 @@ public static class DemoSceneBuilder
         CreateBackgroundLayer("Sky", sprite, background.transform, new Vector2(4f, 1.5f), new Vector2(34f, 12f), new Color(0.42f, 0.74f, 0.95f), -20);
         CreateBackgroundLayer("Far Hills", sprite, background.transform, new Vector2(4f, -1.6f), new Vector2(34f, 2.1f), new Color(0.35f, 0.58f, 0.45f), -12);
         CreateBackgroundLayer("Near Hills", sprite, background.transform, new Vector2(4f, -1.95f), new Vector2(34f, 1.4f), new Color(0.25f, 0.48f, 0.35f), -10);
+    }
+
+    private static void CreateForeground(Sprite sprite, Transform parent)
+    {
+        GameObject foreground = new GameObject("Foreground Decorative Layers");
+        foreground.transform.SetParent(parent);
+
+        CreateForegroundSprite("Near Ground Shadow", sprite, foreground.transform, new Vector2(4f, -3.15f), new Vector2(34f, 1.15f), new Color(0.04f, 0.08f, 0.07f, 0.86f), 24);
+        CreateForegroundSprite("Low Grass Silhouette", sprite, foreground.transform, new Vector2(4f, -2.48f), new Vector2(34f, 0.28f), new Color(0.05f, 0.16f, 0.12f, 0.8f), 18);
+
+        CreateForegroundSprite("Foreground Bush Left", sprite, foreground.transform, new Vector2(-4.6f, -2.18f), new Vector2(2.2f, 0.95f), new Color(0.03f, 0.17f, 0.12f, 0.82f), 19);
+        CreateForegroundSprite("Foreground Bush Mid", sprite, foreground.transform, new Vector2(6.3f, -2.08f), new Vector2(2.7f, 1.05f), new Color(0.03f, 0.15f, 0.11f, 0.78f), 19);
+        CreateForegroundSprite("Foreground Bush Right", sprite, foreground.transform, new Vector2(15.9f, -2.12f), new Vector2(2.5f, 1f), new Color(0.03f, 0.14f, 0.11f, 0.78f), 19);
+
+        CreateForegroundSprite("Foreground Trunk Left", sprite, foreground.transform, new Vector2(-7.3f, 0.2f), new Vector2(0.42f, 5.8f), new Color(0.05f, 0.07f, 0.06f, 0.72f), 22);
+        CreateForegroundSprite("Foreground Trunk Mid", sprite, foreground.transform, new Vector2(10.8f, 0.5f), new Vector2(0.36f, 6.4f), new Color(0.05f, 0.07f, 0.06f, 0.66f), 22);
+        CreateForegroundSprite("Foreground Trunk Right", sprite, foreground.transform, new Vector2(20.5f, 0.1f), new Vector2(0.48f, 5.9f), new Color(0.05f, 0.07f, 0.06f, 0.7f), 22);
+
+        CreateForegroundSprite("Near Canopy Left", sprite, foreground.transform, new Vector2(-7.3f, 3.15f), new Vector2(3.4f, 1.2f), new Color(0.03f, 0.11f, 0.09f, 0.58f), 23);
+        CreateForegroundSprite("Near Canopy Right", sprite, foreground.transform, new Vector2(20.5f, 3.05f), new Vector2(3.8f, 1.25f), new Color(0.03f, 0.11f, 0.09f, 0.56f), 23);
+    }
+
+    private static GameObject CreateForegroundSprite(string name, Sprite sprite, Transform parent, Vector2 position, Vector2 scale, Color color, int sortingOrder)
+    {
+        GameObject element = CreateSpriteObject(name, sprite, position, scale, color);
+        element.transform.SetParent(parent);
+        element.GetComponent<SpriteRenderer>().sortingOrder = sortingOrder;
+        return element;
     }
 
     private static void CreateBackgroundLayer(string name, Sprite sprite, Transform parent, Vector2 position, Vector2 tileScale, Color color, int sortingOrder)
