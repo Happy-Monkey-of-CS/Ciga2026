@@ -125,6 +125,7 @@ namespace Ciga.Demo
         private bool isWallJumpControlling;
         private float wallJumpHorizontalVelocity;
         private int wallJumpStartWallSide;
+        private Vector2 movingStepCarryThisFrame;
         private int currentAttack;
 
         // audio state tracking
@@ -360,6 +361,7 @@ namespace Ciga.Demo
 
             UpdateAnimator();
             UpdateGrappleLine();
+            ApplyMovingStepCarry();
             WrapAtMapEdges();
             UpdateAudioLoops();
             UpdateAudioStateTracking();
@@ -515,30 +517,41 @@ namespace Ciga.Demo
             float facing = spriteRenderer != null && spriteRenderer.flipX ? -1f : 1f;
             Vector2 center = (Vector2)transform.position + new Vector2(attackHitOffset.x * facing, attackHitOffset.y);
             int hitCount = Physics2D.OverlapBoxNonAlloc(center, attackHitSize, 0f, attackOverlapResults);
-            bool hitEnemy = false;
+            bool hitTarget = false;
 
             for (int i = 0; i < hitCount; i++)
             {
                 Collider2D hit = attackOverlapResults[i];
-                if (hit == null || !hit.CompareTag(EnemyTag))
+                if (hit == null)
                 {
                     continue;
                 }
 
-                Enemy2D enemy = hit.GetComponent<Enemy2D>();
-                if (enemy == null)
+                BossController2D boss = hit.GetComponentInParent<BossController2D>();
+                if (boss != null)
                 {
-                    enemy = hit.GetComponentInParent<Enemy2D>();
+                    boss.TakePlayerAttackDamage();
+                    hitTarget = true;
+                    continue;
                 }
 
-                if (enemy != null)
+                if (hit.CompareTag(EnemyTag))
                 {
-                    enemy.Defeat();
-                    hitEnemy = true;
+                    Enemy2D enemy = hit.GetComponent<Enemy2D>();
+                    if (enemy == null)
+                    {
+                        enemy = hit.GetComponentInParent<Enemy2D>();
+                    }
+
+                    if (enemy != null)
+                    {
+                        enemy.Defeat();
+                        hitTarget = true;
+                    }
                 }
             }
 
-            if (hitEnemy)
+            if (hitTarget)
             {
                 PlaySound(attackHitClip);
             }
@@ -609,6 +622,12 @@ namespace Ciga.Demo
         {
             float delay = Mathf.Max(0f, deathRestartDelay);
             yield return new WaitForSeconds(delay);
+            AudioManager2D manager = AudioManager2D.Instance;
+            if (manager != null)
+            {
+                manager.StopAll();
+            }
+
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 
@@ -688,6 +707,28 @@ namespace Ciga.Demo
             }
 
             return true;
+        }
+
+        public void CarryByMovingStep(Vector2 movement)
+        {
+            if (isDead || isClimbing || isGrappling || isPullingGrappleObject || isStrikingObject)
+            {
+                return;
+            }
+
+            movingStepCarryThisFrame += movement;
+        }
+
+        private void ApplyMovingStepCarry()
+        {
+            if (movingStepCarryThisFrame.sqrMagnitude <= 0.000001f)
+            {
+                return;
+            }
+
+            body.position += movingStepCarryThisFrame;
+            movingStepCarryThisFrame = Vector2.zero;
+            Physics2D.SyncTransforms();
         }
 
         private void ApplyWallSlideGravity()
@@ -2210,6 +2251,11 @@ namespace Ciga.Demo
                     continue;
                 }
 
+                if (TryDamageBossWithStruckStep(overlap))
+                {
+                    return true;
+                }
+
                 if (overlap != bodyCollider && initialStruckObjectOverlaps.Contains(overlap))
                 {
                     continue;
@@ -2261,6 +2307,13 @@ namespace Ciga.Demo
 
                 if (ShouldIgnoreStepPassengerCollider(struckTarget, hit.collider))
                 {
+                    continue;
+                }
+
+                if (TryDamageBossWithStruckStep(hit.collider))
+                {
+                    nearestDistance = Mathf.Min(nearestDistance, hit.distance);
+                    hasBlockingHit = true;
                     continue;
                 }
 
@@ -2331,6 +2384,23 @@ namespace Ciga.Demo
             }
 
             return false;
+        }
+
+        private bool TryDamageBossWithStruckStep(Collider2D hitCollider)
+        {
+            if (!IsGrappleStepTarget(struckTarget) || hitCollider == null || hitCollider == bodyCollider)
+            {
+                return false;
+            }
+
+            BossController2D boss = hitCollider.GetComponentInParent<BossController2D>();
+            if (boss == null)
+            {
+                return false;
+            }
+
+            boss.TakeStruckStepDamage();
+            return true;
         }
 
         private static ContactFilter2D CreatePulledObjectContactFilter()

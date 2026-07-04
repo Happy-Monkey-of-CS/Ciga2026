@@ -43,6 +43,7 @@ namespace Ciga.Demo
         private int currentStepIndex;
         private float currentStepElapsed;
         private bool movementPlanCompleted;
+        private bool externalMovementLocked;
 
         private void Awake()
         {
@@ -67,7 +68,22 @@ namespace Ciga.Demo
 
         private void FixedUpdate()
         {
+            if (externalMovementLocked)
+            {
+                return;
+            }
+
             UpdateMovementPlan();
+        }
+
+        public void BeginExternalMovement()
+        {
+            externalMovementLocked = true;
+        }
+
+        public void EndExternalMovement()
+        {
+            externalMovementLocked = false;
         }
 
         private void UpdateMovementPlan()
@@ -168,10 +184,9 @@ namespace Ciga.Demo
                 }
 
                 Collider2D playerCollider = player.GetComponent<Collider2D>();
-                Rigidbody2D playerBody = player.GetComponent<Rigidbody2D>();
-                if (playerCollider != null && playerBody != null && IsStandingOnStep(playerCollider))
+                if (playerCollider != null && IsStandingOnStep(playerCollider))
                 {
-                    playerBody.MovePosition(playerBody.position + movement);
+                    player.CarryByMovingStep(movement);
                 }
             }
         }

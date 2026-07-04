@@ -81,6 +81,7 @@ namespace Ciga.Demo
             AudioSource source = GetAvailableSource();
             if (source == null) return null;
 
+            PrepareSource(source, Vector3.zero, 0f);
             source.clip = clip;
             source.volume = volume;
             source.pitch = pitch;
@@ -97,11 +98,10 @@ namespace Ciga.Demo
             AudioSource source = GetAvailableSource();
             if (source == null) return null;
 
-            source.transform.position = position;
+            PrepareSource(source, position, spatialBlend);
             source.clip = clip;
             source.volume = volume;
             source.pitch = pitch;
-            source.spatialBlend = spatialBlend;
             source.loop = false;
             source.Play();
             return source;
@@ -120,6 +120,7 @@ namespace Ciga.Demo
             AudioSource source = GetAvailableSource();
             if (source == null) return null;
 
+            PrepareSource(source, Vector3.zero, 0f);
             source.clip = clip;
             source.volume = volume;
             source.pitch = pitch;
@@ -139,6 +140,7 @@ namespace Ciga.Demo
             {
                 source.Stop();
                 source.clip = null;
+                PrepareSource(source, Vector3.zero, 0f);
             }
 
             loopingSounds.Remove(key);
@@ -217,13 +219,25 @@ namespace Ciga.Demo
             {
                 foreach (AudioSource source in pool)
                 {
-                    if (source != null && source.isPlaying)
+                    if (source != null)
                     {
                         source.Stop();
                         source.clip = null;
+                        PrepareSource(source, Vector3.zero, 0f);
                     }
                 }
             }
+        }
+
+        private static void PrepareSource(AudioSource source, Vector3 position, float spatialBlend)
+        {
+            source.transform.position = position;
+            source.spatialBlend = spatialBlend;
+            source.loop = false;
+            source.pitch = 1f;
+            source.volume = 1f;
+            source.panStereo = 0f;
+            source.outputAudioMixerGroup = null;
         }
     }
 }
