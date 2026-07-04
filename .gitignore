@@ -108,3 +108,6 @@ InitTestScene*.unity*
 .plastic/
 .vsconfig
 .vscode/
+
+# External raw asset packs — keep out of version control.
+/400 Sounds Pack/
