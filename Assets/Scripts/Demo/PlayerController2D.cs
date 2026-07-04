@@ -611,6 +611,12 @@ namespace Ciga.Demo
         {
             float delay = Mathf.Max(0f, deathRestartDelay);
             yield return new WaitForSeconds(delay);
+            AudioManager2D manager = AudioManager2D.Instance;
+            if (manager != null)
+            {
+                manager.StopAll();
+            }
+
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 
