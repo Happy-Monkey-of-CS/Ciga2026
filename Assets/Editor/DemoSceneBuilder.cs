@@ -151,6 +151,7 @@ public static class DemoSceneBuilder
         CreateSun(whiteSprite, world.transform);
         CreateVoidZones(world.transform);
         CreateInstructions();
+        CreateCollectibleHUD();
 
         Selection.activeGameObject = player;
         EditorSceneManager.MarkSceneDirty(scene);
@@ -852,6 +853,22 @@ public static class DemoSceneBuilder
         renderer.sprite = sprite;
         renderer.color = color;
         return gameObject;
+    }
+
+    private const string CollectibleHUDPrefabPath = "Assets/Prefabs/CollectibleHUD.prefab";
+
+    private static void CreateCollectibleHUD()
+    {
+        GameObject hudPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CollectibleHUDPrefabPath);
+        if (hudPrefab == null)
+        {
+            Debug.LogWarning("[DemoSceneBuilder] CollectibleHUD prefab not found. Run Tools → Ciga → Create Collectible HUD Prefab first.");
+            return;
+        }
+
+        GameObject hud = (GameObject)PrefabUtility.InstantiatePrefab(hudPrefab);
+        hud.name = "CollectibleHUD";
+        Debug.Log("[DemoSceneBuilder] CollectibleHUD added to scene.");
     }
 
 }
