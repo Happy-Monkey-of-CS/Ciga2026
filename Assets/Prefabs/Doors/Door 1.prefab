@@ -183,6 +183,7 @@ MonoBehaviour:
   maxStrikeCount: 3
   breakEffect: {fileID: 0}
   breakClip: {fileID: 0}
+  hookOnly: 1
   bounceOnGround: 1
   bounceCheckDistance: 0.05
   groundBounceTag: DemoGround

@@ -235,42 +235,52 @@ namespace Ciga.Demo
                 return;
             }
 
+            // Block mouse input during cutscenes
+            bool cutsceneActive = CutsceneManager2D.Instance != null && CutsceneManager2D.Instance.IsPlaying;
+
             if (Input.GetButtonDown("Jump") && !IsTimeStopAiming())
             {
                 jumpRequested = true;
             }
 
-            if (Input.GetKeyDown(KeyCode.E))
+            if (Input.GetKeyDown(KeyCode.E) && !cutsceneActive)
             {
                 Attack();
             }
 
-            if (Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0) && !cutsceneActive)
             {
                 StartGrappleAim();
             }
 
-            if (isGrappleAiming && Input.GetMouseButton(0))
+            // Force-stop any active aiming when cutscene starts
+            if (cutsceneActive && (isGrappleAiming || isStrikeAiming))
+            {
+                StopGrappleAim();
+                StopStrikeAim();
+            }
+
+            if (isGrappleAiming && Input.GetMouseButton(0) && !cutsceneActive)
             {
                 UpdateGrappleAim();
             }
 
-            if (Input.GetMouseButtonUp(0))
+            if (Input.GetMouseButtonUp(0) && !cutsceneActive)
             {
                 ReleaseGrappleAim();
             }
 
-            if (Input.GetMouseButtonDown(1))
+            if (Input.GetMouseButtonDown(1) && !cutsceneActive)
             {
                 StartStrikeAim();
             }
 
-            if (isStrikeAiming && Input.GetMouseButton(1))
+            if (isStrikeAiming && Input.GetMouseButton(1) && !cutsceneActive)
             {
                 UpdateStrikeAim();
             }
 
-            if (Input.GetMouseButtonUp(1))
+            if (Input.GetMouseButtonUp(1) && !cutsceneActive)
             {
                 ReleaseStrikeAim();
             }

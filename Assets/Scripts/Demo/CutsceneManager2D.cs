@@ -277,6 +277,8 @@ namespace Ciga.Demo
             var cs = cGo.AddComponent<CanvasScaler>();
             cs.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             cs.referenceResolution = new Vector2(1920, 1080);
+            cs.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            cs.matchWidthOrHeight = 1f; // Match width for horizontal game
             cGo.AddComponent<GraphicRaycaster>();
 
             var pGo = new GameObject("Panel");
