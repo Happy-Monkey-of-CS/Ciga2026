@@ -45,6 +45,12 @@ namespace Ciga.Demo
         [SerializeField] private GameObject breakEffect;
         [SerializeField] private AudioClip breakClip;
 
+        [Header("Hook Only")]
+        [Tooltip("Player can grapple to this step but won't stand on it. Still strikeable.")]
+        [SerializeField] private bool hookOnly = false;
+
+        public bool HookOnly => hookOnly;
+
         [Header("Bounce")]
         [Tooltip("When enabled, this block reverses direction on hitting DemoGround.")]
         [SerializeField] private bool bounceOnGround = true;

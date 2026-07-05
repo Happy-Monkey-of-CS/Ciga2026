@@ -1798,6 +1798,15 @@ namespace Ciga.Demo
                 return;
             }
 
+            // Hook-only step: pull to anchor point, then release — don't land
+            StepMover2D step = target.GetComponent<StepMover2D>();
+            if (step != null && step.HookOnly)
+            {
+                StopGrapple();
+                body.velocity = Vector2.zero;
+                return;
+            }
+
             if (IsGrappleWallTarget(target))
             {
                 StartGrappleWallSlide(target, fromLeft);

@@ -53,6 +53,24 @@ namespace Ciga.Demo
             bgr.anchorMin = Vector2.zero; bgr.anchorMax = Vector2.one;
             bgr.offsetMin = Vector2.zero; bgr.offsetMax = Vector2.zero;
 
+            // Title
+            var titleGo = new GameObject("Title");
+            titleGo.transform.SetParent(cGo.transform, false);
+            var titleTxt = titleGo.AddComponent<Text>();
+            titleTxt.text = "Last Anchor";
+            titleTxt.font = Resources.Load<Font>("Fonts/SimHei");
+            titleTxt.fontSize = 72;
+            titleTxt.color = new Color(0.9f, 0.82f, 0.6f, 1f);
+            titleTxt.alignment = TextAnchor.MiddleCenter;
+            var titleRect = titleTxt.rectTransform;
+            titleRect.anchorMin = new Vector2(0.15f, 0.55f);
+            titleRect.anchorMax = new Vector2(0.85f, 0.75f);
+            titleRect.offsetMin = Vector2.zero; titleRect.offsetMax = Vector2.zero;
+            // Shadow effect via outline
+            var outline = titleGo.AddComponent<Outline>();
+            outline.effectColor = new Color(0, 0, 0, 0.6f);
+            outline.effectDistance = new Vector2(3, -3);
+
             // Button panel (bottom-center)
             var btnPanel = new GameObject("ButtonPanel");
             btnPanel.transform.SetParent(cGo.transform, false);
@@ -107,7 +125,7 @@ namespace Ciga.Demo
             labelGo.transform.SetParent(go.transform, false);
             var txt = labelGo.AddComponent<Text>();
             txt.text = label;
-            txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            txt.font = Resources.Load<Font>("Fonts/SimHei");
             txt.fontSize = 32;
             txt.color = new Color(0.9f, 0.85f, 0.7f, 1f);
             txt.alignment = TextAnchor.MiddleCenter;

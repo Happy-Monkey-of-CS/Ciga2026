@@ -319,7 +319,7 @@ namespace Ciga.Demo
         {
             var go = new GameObject(n); go.transform.SetParent(p, false);
             var t = go.AddComponent<Text>();
-            t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            t.font = Resources.Load<Font>("Fonts/SimHei");
             t.fontSize = sz; t.color = c; t.alignment = a;
             var r = t.rectTransform; r.anchorMin = amin; r.anchorMax = amax;
             r.offsetMin = Vector2.zero; r.offsetMax = Vector2.zero;
