@@ -15,6 +15,9 @@ namespace Ciga.Demo
         private const string EnemyTag = "Enemy";
         private const float PulledObjectSkinWidth = 0.01f;
 
+        /// <summary>Invoked each time the player wraps around the map edge.</summary>
+        public System.Action OnPlayerWrapped;
+
         [Header("Movement")]
         [SerializeField] private float autoRunSpeed = 4f;
         [SerializeField] private float jumpForce = 13f;
@@ -509,7 +512,7 @@ namespace Ciga.Demo
             anchorIndicator.transform.localScale = Vector3.one * Mathf.Max(0.001f, anchorScale);
         }
 
-        private void StopAllAudioLoops()
+        public void StopAllAudioLoops()
         {
             StopLoop(ref footstepLoopActive, "player_footstep");
             StopLoop(ref wallSlideLoopActive, "player_wallslide");
@@ -2387,6 +2390,8 @@ namespace Ciga.Demo
             body.velocity = velocity;
             Physics2D.SyncTransforms();
             UpdateGrappleLine();
+
+            OnPlayerWrapped?.Invoke();
         }
 
         private void OnValidate()

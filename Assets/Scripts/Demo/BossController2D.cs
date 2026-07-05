@@ -15,6 +15,9 @@ namespace Ciga.Demo
         [SerializeField] private PlayerController2D player;
         [SerializeField] private LayerMask bossAbilityMask = 1;
 
+        /// <summary>Invoked when the boss is defeated.</summary>
+        public System.Action OnBossDefeated;
+
         [Header("Movement")]
         [SerializeField] private float moveSpeed = 2.3f;
         [SerializeField] private float jumpForce = 11.5f;
@@ -76,6 +79,20 @@ namespace Ciga.Demo
         [SerializeField] private Color grappleColor = new Color(0.9f, 0.2f, 1f, 0.95f);
         [SerializeField] private Color pullColor = new Color(0.25f, 0.95f, 1f, 0.95f);
         [SerializeField] private Color strikeColor = new Color(1f, 0.35f, 0.15f, 0.95f);
+
+        [Header("Sounds")]
+        [SerializeField] private AudioClip spawnSound;
+        [SerializeField] private AudioClip meleeSwingSound;
+        [SerializeField] private AudioClip attackHitSound;
+        [SerializeField] private AudioClip hurtSound;
+        [SerializeField] private AudioClip deathVoiceSound;
+        [SerializeField] private AudioClip deathChimeSound;
+        [SerializeField] private AudioClip grappleFireSound;
+        [SerializeField] private AudioClip grappleChainSound;
+        [SerializeField] private AudioClip grappleLandSound;
+        [SerializeField] private AudioClip pullObjectSound;
+        [SerializeField] private AudioClip strikeImpactSound;
+        [SerializeField] private AudioClip attackWindupSound;
 
         private static readonly int BossIsMovingHash = Animator.StringToHash("IsMoving");
         private static readonly int BossAttackHash = Animator.StringToHash("Attack");
@@ -142,6 +159,17 @@ namespace Ciga.Demo
             }
 
             RefreshIgnoredEnemyCollisions();
+            PlayBossSound(spawnSound, 0.7f);
+        }
+
+        private void PlayBossSound(AudioClip clip, float volume = 1f)
+        {
+            if (clip == null) return;
+            AudioManager2D manager = AudioManager2D.Instance;
+            if (manager != null)
+            {
+                manager.PlayOneShotAt(clip, transform.position, volume);
+            }
         }
 
         private void Update()
@@ -268,11 +296,14 @@ namespace Ciga.Demo
             body.velocity = new Vector2(0f, body.velocity.y);
             UpdateAnimator(false);
             TriggerAttackAnimation();
+            PlayBossSound(attackWindupSound, 0.7f);
+            PlayBossSound(meleeSwingSound, 0.8f);
 
             yield return new WaitForSeconds(meleeWindup);
 
             if (player != null && Vector2.Distance(transform.position, player.transform.position) <= meleeRange + 0.35f)
             {
+                PlayBossSound(attackHitSound, 0.9f);
                 player.Kill();
             }
 
@@ -317,6 +348,8 @@ namespace Ciga.Demo
         {
             isBusy = true;
             nextGrappleTime = Time.time + grappleCooldown;
+            PlayBossSound(grappleFireSound, 0.7f);
+            PlayBossSound(grappleChainSound, 0.5f);
             SetLine(grappleColor);
             float previousGravityScale = body.gravityScale;
             body.gravityScale = 0f;
@@ -354,6 +387,7 @@ namespace Ciga.Demo
             EndIgnoreStepCollisionsForGrapple(ignoredStepCount);
 
             body.gravityScale = previousGravityScale;
+            PlayBossSound(grappleLandSound, 0.6f);
             HideLine();
             isBusy = false;
         }
@@ -442,6 +476,7 @@ namespace Ciga.Demo
         {
             isBusy = true;
             nextObjectAbilityTime = Time.time + objectAbilityCooldown;
+            PlayBossSound(pullObjectSound, 0.6f);
             SetLine(pullColor);
             StepMover2D lockedStepMover = target != null ? target.GetComponent<StepMover2D>() : null;
             if (lockedStepMover != null)
@@ -485,6 +520,7 @@ namespace Ciga.Demo
         {
             isBusy = true;
             nextObjectAbilityTime = Time.time + objectAbilityCooldown;
+            PlayBossSound(strikeImpactSound, 0.7f);
             SetLine(strikeColor);
             TriggerAttackAnimation();
             StepMover2D lockedStepMover = target != null ? target.GetComponent<StepMover2D>() : null;
@@ -924,11 +960,14 @@ namespace Ciga.Demo
             body.velocity = new Vector2(0f, body.velocity.y);
             UpdateAnimator(false);
             TriggerAttackAnimation();
+            PlayBossSound(attackWindupSound, 0.7f);
+            PlayBossSound(meleeSwingSound, 0.8f);
 
             yield return new WaitForSeconds(meleeWindup);
 
             if (player != null && Vector2.Distance(transform.position, player.transform.position) <= meleeRange + 0.9f)
             {
+                PlayBossSound(attackHitSound, 0.9f);
                 player.Kill();
             }
 
@@ -958,6 +997,7 @@ namespace Ciga.Demo
             }
 
             currentHealth = Mathf.Max(0f, currentHealth - damage);
+            PlayBossSound(hurtSound, 0.8f);
             if (hitFlashRoutine != null)
             {
                 StopCoroutine(hitFlashRoutine);
@@ -994,6 +1034,8 @@ namespace Ciga.Demo
             isDefeated = true;
             StopAllCoroutines();
             HideLine();
+            PlayBossSound(deathVoiceSound, 1f);
+            PlayBossSound(deathChimeSound, 0.7f);
             body.velocity = Vector2.zero;
             body.bodyType = RigidbodyType2D.Kinematic;
             body.simulated = false;
@@ -1010,6 +1052,7 @@ namespace Ciga.Demo
                 animator.SetTrigger(BossDeathHash);
             }
 
+            OnBossDefeated?.Invoke();
             StartCoroutine(DestroyAfterDeathAnimation());
         }
 
