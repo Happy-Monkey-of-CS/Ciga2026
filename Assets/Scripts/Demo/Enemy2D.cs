@@ -53,12 +53,19 @@ namespace Ciga.Demo
         private bool isFalling;
         private bool isExternallyCarried;
         private Collider2D ignoredFallingSupport;
+        private Animator animator;
+        private int facingDirection = 1;
+
+        private static readonly int IsMovingHash = Animator.StringToHash("IsMoving");
+        private static readonly int DirectionHash = Animator.StringToHash("Direction");
 
         private void Awake()
         {
             bodyCollider = GetComponent<Collider2D>();
             body = GetComponent<Rigidbody2D>();
+            animator = GetComponent<Animator>();
             ConfigureBodyForScriptedMovement();
+            UpdateAnimator(false, facingDirection);
         }
 
         private void OnEnable()
@@ -66,6 +73,7 @@ namespace Ciga.Demo
             currentStepIndex = 0;
             currentStepElapsed = 0f;
             movementPlanCompleted = false;
+            UpdateAnimator(false, facingDirection);
         }
 
         private void FixedUpdate()
@@ -261,6 +269,7 @@ namespace Ciga.Demo
         {
             if (isDefeated || movementPlanCompleted || movementPlan == null || movementPlan.Length == 0)
             {
+                UpdateAnimator(false, facingDirection);
                 return;
             }
 
@@ -278,6 +287,7 @@ namespace Ciga.Demo
                     break;
 
                 case EnemyMovementAction.StopForDuration:
+                    UpdateAnimator(false, facingDirection);
                     TickTimedStep(step.Duration);
                     break;
 
@@ -313,8 +323,25 @@ namespace Ciga.Demo
 
         private void MoveHorizontal(float direction, float speedMultiplier)
         {
+            if (Mathf.Abs(direction) > 0.01f)
+            {
+                facingDirection = direction < 0f ? -1 : 1;
+            }
+
+            UpdateAnimator(true, facingDirection);
             Vector2 targetPosition = body.position + Vector2.right * (direction * moveSpeed * speedMultiplier * Time.fixedDeltaTime);
             body.MovePosition(targetPosition);
+        }
+
+        private void UpdateAnimator(bool isMoving, int direction)
+        {
+            if (animator == null)
+            {
+                return;
+            }
+
+            animator.SetBool(IsMovingHash, isMoving);
+            animator.SetInteger(DirectionHash, direction < 0 ? -1 : 1);
         }
 
         private void UpdatePhysicsFall()
@@ -438,6 +465,7 @@ namespace Ciga.Demo
 
             currentStepIndex = movementPlan.Length - 1;
             movementPlanCompleted = true;
+            UpdateAnimator(false, facingDirection);
         }
 
         private void OnValidate()
