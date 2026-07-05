@@ -169,7 +169,7 @@ BoxCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0.66}
+  m_Offset: {x: 0, y: 0.027773023}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
@@ -180,7 +180,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 0.82, y: 1.3}
+  m_Size: {x: 0.82, y: 1.0521923}
   m_EdgeRadius: 0
 --- !u!120 &3416439122708094277
 LineRenderer:
@@ -359,6 +359,12 @@ MonoBehaviour:
   grappleColor: {r: 0.9, g: 0.2, b: 1, a: 0.95}
   pullColor: {r: 0.25, g: 0.95, b: 1, a: 0.95}
   strikeColor: {r: 1, g: 0.35, b: 0.15, a: 0.95}
+  abilityRopeSprite: {fileID: 21300000, guid: ef553944fff5d5c4faeaee0dc736e525, type: 3}
+  abilityRopeWidth: 0.1
+  abilityRopeSegmentLength: 0.2
+  abilityRopeOriginOffset: {x: 0.15, y: -0.3}
+  abilityAnchorSprite: {fileID: 21300000, guid: 1830128b4d7962245b483656a34c448b, type: 3}
+  abilityAnchorScale: 0.05
   spawnSound: {fileID: 8300000, guid: a1f163cb3f9b7b643ab7529f3b062779, type: 3}
   meleeSwingSound: {fileID: 8300000, guid: 8faa447d4ac953b42a39cef8f01b0b15, type: 3}
   attackHitSound: {fileID: 8300000, guid: 21d63329517bb0745b7160351390b425, type: 3}
@@ -366,8 +372,8 @@ MonoBehaviour:
   deathVoiceSound: {fileID: 8300000, guid: f9f7a5067aae0a848ba3e79163b22e95, type: 3}
   deathChimeSound: {fileID: 8300000, guid: f574b5c2caff07d4da12678648bfc4c5, type: 3}
   grappleFireSound: {fileID: 8300000, guid: 0c75693278d975a4b8875ae0c124bfb7, type: 3}
+  grappleChainSound: {fileID: 8300000, guid: 78553325997f0b84b9225dce67400f53, type: 3}
   grappleLandSound: {fileID: 8300000, guid: 2ff0ec777c1e761498b3757b2e688a5e, type: 3}
   pullObjectSound: {fileID: 8300000, guid: 9fee3da53b7d2784f9fb8d27d341dc7a, type: 3}
   strikeImpactSound: {fileID: 8300000, guid: 051c7550ee4ee6549af1b7f1c0f3e562, type: 3}
   attackWindupSound: {fileID: 8300000, guid: 8211e5729e36b3b449ffd3cb4cebd7ff, type: 3}
-  grappleChainSound: {fileID: 8300000, guid: 78553325997f0b84b9225dce67400f53, type: 3}

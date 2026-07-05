@@ -1,4 +1,5 @@
 using System.IO;
+using Ciga.Demo;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
@@ -17,6 +18,8 @@ public static class DarkMermaidBossPrefabBuilder
         MermaidPlayerAnimationBuilder.CreateOrUpdateController();
         RuntimeAnimatorController controller = CreateOrUpdateBossController();
         Sprite idleSprite = MermaidPlayerAnimationBuilder.LoadSprite("Idle_1");
+        Sprite chainSprite = AssetDatabase.LoadAssetAtPath<Sprite>(MermaidPlayerAnimationBuilder.ChainTexturePath);
+        Sprite anchorSprite = AssetDatabase.LoadAssetAtPath<Sprite>(MermaidPlayerAnimationBuilder.AnchorIconPath);
 
         GameObject prefabRoot = PrefabUtility.LoadPrefabContents(BossPrefabPath);
         if (prefabRoot == null)
@@ -49,6 +52,20 @@ public static class DarkMermaidBossPrefabBuilder
                 animator.runtimeAnimatorController = controller;
                 animator.applyRootMotion = false;
                 EditorUtility.SetDirty(animator);
+            }
+
+            BossController2D bossController = prefabRoot.GetComponent<BossController2D>();
+            if (bossController != null)
+            {
+                SerializedObject serializedBoss = new SerializedObject(bossController);
+                Set(serializedBoss, "abilityRopeSprite", chainSprite);
+                Set(serializedBoss, "abilityAnchorSprite", anchorSprite);
+                Set(serializedBoss, "abilityRopeWidth", 0.12f);
+                Set(serializedBoss, "abilityRopeSegmentLength", 0.18f);
+                Set(serializedBoss, "abilityRopeOriginOffset", new Vector2(0.15f, 0.65f));
+                Set(serializedBoss, "abilityAnchorScale", 1f);
+                serializedBoss.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(bossController);
             }
 
             PrefabUtility.SaveAsPrefabAsset(prefabRoot, BossPrefabPath);
@@ -97,6 +114,33 @@ public static class DarkMermaidBossPrefabBuilder
         EditorUtility.SetDirty(controller);
         AssetDatabase.SaveAssets();
         return controller;
+    }
+
+    private static void Set(SerializedObject serialized, string propertyName, Object value)
+    {
+        SerializedProperty property = serialized.FindProperty(propertyName);
+        if (property != null)
+        {
+            property.objectReferenceValue = value;
+        }
+    }
+
+    private static void Set(SerializedObject serialized, string propertyName, float value)
+    {
+        SerializedProperty property = serialized.FindProperty(propertyName);
+        if (property != null)
+        {
+            property.floatValue = value;
+        }
+    }
+
+    private static void Set(SerializedObject serialized, string propertyName, Vector2 value)
+    {
+        SerializedProperty property = serialized.FindProperty(propertyName);
+        if (property != null)
+        {
+            property.vector2Value = value;
+        }
     }
 
     private static AnimationClip LoadClip(string name)

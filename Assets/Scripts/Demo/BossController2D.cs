@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Ciga.Demo
@@ -79,6 +80,18 @@ namespace Ciga.Demo
         [SerializeField] private Color grappleColor = new Color(0.9f, 0.2f, 1f, 0.95f);
         [SerializeField] private Color pullColor = new Color(0.25f, 0.95f, 1f, 0.95f);
         [SerializeField] private Color strikeColor = new Color(1f, 0.35f, 0.15f, 0.95f);
+        [Tooltip("Sprite image used to build boss ability chain visuals.")]
+        [SerializeField] private Sprite abilityRopeSprite;
+        [Tooltip("Width used by boss chain visuals.")]
+        [SerializeField, Min(0.001f)] private float abilityRopeWidth = 0.12f;
+        [Tooltip("World-space length of each repeated boss chain image segment.")]
+        [SerializeField, Min(0.01f)] private float abilityRopeSegmentLength = 0.18f;
+        [Tooltip("Local offset from the boss transform where ability chains start. X follows facing direction.")]
+        [SerializeField] private Vector2 abilityRopeOriginOffset = new Vector2(0.15f, 0.65f);
+        [Tooltip("Anchor icon shown at the target end of the boss chain.")]
+        [SerializeField] private Sprite abilityAnchorSprite;
+        [Tooltip("Scale multiplier for the boss anchor icon.")]
+        [SerializeField, Min(0.001f)] private float abilityAnchorScale = 1f;
 
         [Header("Sounds")]
         [SerializeField] private AudioClip spawnSound;
@@ -107,6 +120,9 @@ namespace Ciga.Demo
         private SpriteRenderer spriteRenderer;
         private Animator animator;
         private LineRenderer abilityLine;
+        private readonly List<SpriteRenderer> abilityRopeSegments = new List<SpriteRenderer>();
+        private Transform abilityRopeRoot;
+        private GameObject abilityAnchorIndicator;
         private bool isBusy;
         private bool isGrounded;
         private bool isBurstCatchingUp;
@@ -1083,25 +1099,49 @@ namespace Ciga.Demo
 
         private void SetLine(Color color)
         {
-            if (abilityLine == null)
+            if (abilityLine != null)
             {
-                return;
+                abilityLine.enabled = abilityRopeSprite == null;
+                abilityLine.startColor = color;
+                abilityLine.endColor = color;
             }
-
-            abilityLine.enabled = true;
-            abilityLine.startColor = color;
-            abilityLine.endColor = color;
         }
 
         private void DrawLine(Vector3 start, Vector3 end)
         {
+            Vector3 origin = GetAbilityRopeOrigin(start);
+            if (abilityRopeSprite != null)
+            {
+                if (abilityLine != null)
+                {
+                    abilityLine.enabled = false;
+                }
+
+                UpdateRopeImageLine(origin, end);
+                UpdateAnchorIndicator(origin, end);
+                return;
+            }
+
+            SetRopeSegmentsActive(false);
+            DestroyAnchorIndicator();
             if (abilityLine == null)
             {
                 return;
             }
 
-            abilityLine.SetPosition(0, start + Vector3.up * 0.65f);
+            abilityLine.SetPosition(0, origin);
             abilityLine.SetPosition(1, end);
+        }
+
+        private Vector3 GetAbilityRopeOrigin(Vector3 fallbackPosition)
+        {
+            Vector2 offset = abilityRopeOriginOffset;
+            if (spriteRenderer != null && spriteRenderer.flipX)
+            {
+                offset.x *= -1f;
+            }
+
+            return fallbackPosition + transform.TransformVector(offset);
         }
 
         private void HideLine()
@@ -1110,6 +1150,114 @@ namespace Ciga.Demo
             {
                 abilityLine.enabled = false;
             }
+
+            SetRopeSegmentsActive(false);
+            DestroyAnchorIndicator();
+        }
+
+        private void UpdateRopeImageLine(Vector2 origin, Vector2 end)
+        {
+            Vector2 delta = end - origin;
+            float distance = delta.magnitude;
+            if (distance <= 0.001f)
+            {
+                SetRopeSegmentsActive(false);
+                return;
+            }
+
+            if (abilityRopeRoot == null)
+            {
+                GameObject rootObject = new GameObject("Boss Ability Chain");
+                rootObject.transform.SetParent(transform, false);
+                abilityRopeRoot = rootObject.transform;
+            }
+
+            Vector2 direction = delta / distance;
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            int segmentCount = Mathf.Max(1, Mathf.CeilToInt(distance / Mathf.Max(0.01f, abilityRopeSegmentLength)));
+            float segmentLength = distance / segmentCount;
+            Bounds spriteBounds = abilityRopeSprite.bounds;
+            float spriteWidth = Mathf.Max(0.001f, spriteBounds.size.x);
+            float spriteHeight = Mathf.Max(0.001f, spriteBounds.size.y);
+            float ropeWidth = Mathf.Max(0.001f, abilityRopeWidth);
+
+            for (int i = 0; i < segmentCount; i++)
+            {
+                SpriteRenderer segment = GetOrCreateRopeSegment(i);
+                segment.gameObject.SetActive(true);
+                segment.sprite = abilityRopeSprite;
+                segment.sortingOrder = 22;
+                segment.color = Color.white;
+
+                Vector2 segmentCenter = origin + direction * (segmentLength * (i + 0.5f));
+                segment.transform.position = new Vector3(segmentCenter.x, segmentCenter.y, transform.position.z);
+                segment.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+                segment.transform.localScale = new Vector3(segmentLength / spriteWidth, ropeWidth / spriteHeight, 1f);
+            }
+
+            for (int i = segmentCount; i < abilityRopeSegments.Count; i++)
+            {
+                abilityRopeSegments[i].gameObject.SetActive(false);
+            }
+        }
+
+        private SpriteRenderer GetOrCreateRopeSegment(int index)
+        {
+            while (abilityRopeSegments.Count <= index)
+            {
+                GameObject segmentObject = new GameObject($"Boss Ability Chain Segment {abilityRopeSegments.Count + 1:00}");
+                segmentObject.transform.SetParent(abilityRopeRoot, false);
+                SpriteRenderer renderer = segmentObject.AddComponent<SpriteRenderer>();
+                renderer.sortingOrder = 22;
+                abilityRopeSegments.Add(renderer);
+            }
+
+            return abilityRopeSegments[index];
+        }
+
+        private void SetRopeSegmentsActive(bool active)
+        {
+            for (int i = 0; i < abilityRopeSegments.Count; i++)
+            {
+                if (abilityRopeSegments[i] != null)
+                {
+                    abilityRopeSegments[i].gameObject.SetActive(active);
+                }
+            }
+        }
+
+        private void UpdateAnchorIndicator(Vector2 origin, Vector2 end)
+        {
+            if (abilityAnchorSprite == null)
+            {
+                DestroyAnchorIndicator();
+                return;
+            }
+
+            if (abilityAnchorIndicator == null)
+            {
+                abilityAnchorIndicator = new GameObject("Boss Ability Anchor");
+                SpriteRenderer renderer = abilityAnchorIndicator.AddComponent<SpriteRenderer>();
+                renderer.sprite = abilityAnchorSprite;
+                renderer.sortingOrder = 23;
+            }
+
+            Vector2 direction = end - origin;
+            float angle = direction.sqrMagnitude > 0.0001f ? Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg + 90f : 0f;
+            abilityAnchorIndicator.transform.position = new Vector3(end.x, end.y, transform.position.z);
+            abilityAnchorIndicator.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+            abilityAnchorIndicator.transform.localScale = Vector3.one * Mathf.Max(0.001f, abilityAnchorScale);
+        }
+
+        private void DestroyAnchorIndicator()
+        {
+            if (abilityAnchorIndicator == null)
+            {
+                return;
+            }
+
+            Destroy(abilityAnchorIndicator);
+            abilityAnchorIndicator = null;
         }
 
         private void OnValidate()
@@ -1148,6 +1296,9 @@ namespace Ciga.Demo
             grappleRange = Mathf.Max(0.1f, grappleRange);
             grappleStepLandingSkin = Mathf.Max(0.005f, grappleStepLandingSkin);
             objectAbilityRange = Mathf.Max(0.1f, objectAbilityRange);
+            abilityRopeWidth = Mathf.Max(0.001f, abilityRopeWidth);
+            abilityRopeSegmentLength = Mathf.Max(0.01f, abilityRopeSegmentLength);
+            abilityAnchorScale = Mathf.Max(0.001f, abilityAnchorScale);
         }
     }
 }
