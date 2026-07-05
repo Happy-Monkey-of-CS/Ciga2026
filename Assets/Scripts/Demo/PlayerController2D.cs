@@ -729,6 +729,8 @@ namespace Ciga.Demo
             isForcedWallSliding = false;
             isWallJumpControlling = false;
             UpdateAudioLoops();
+
+            OnPlayerWrapped?.Invoke();
         }
 
         // Called by the Hero Knight wall-slide animation event.
@@ -2377,6 +2379,8 @@ namespace Ciga.Demo
                 return;
             }
 
+            Debug.Log($"[Player] Wrapping! x={body.position.x} → {wrapLeftX}, OnPlayerWrapped is null? {OnPlayerWrapped == null}");
+
             StopGrapple();
             StopPullGrappleObject();
             StopStrikeObject();
@@ -2392,6 +2396,7 @@ namespace Ciga.Demo
             UpdateGrappleLine();
 
             OnPlayerWrapped?.Invoke();
+            Debug.Log("[Player] OnPlayerWrapped invoked.");
         }
 
         private void OnValidate()

@@ -208,6 +208,7 @@ namespace Ciga.Demo
 
         private void Awake()
         {
+            Debug.Log("[Cutscene] Awake — CutsceneManager starting up.");
             if (Instance != null && Instance != this) { Destroy(gameObject); return; }
             Instance = this;
             BuildUI();
@@ -226,6 +227,7 @@ namespace Ciga.Demo
         private IEnumerator Start()
         {
             yield return null;
+            Debug.Log($"[Cutscene] Start — openingHasPlayed:{_openingHasPlayed} highestChapter:{_highestChapter}");
             CurrentPhase = 0;
             IsPlaying = false;
             Phase2Played = false;
@@ -234,8 +236,7 @@ namespace Ciga.Demo
             TutorialDone = false;
             PlayerHasWrapped = false;
 
-            var player = FindFirstObjectByType<PlayerController2D>();
-            if (player != null) player.OnPlayerWrapped += () => PlayerHasWrapped = true;
+            StartCoroutine(WireUpPlayer());
             var collector = CollectionManager2D.Instance;
             if (collector != null) collector.OnAllCollected.AddListener(OnAllKeysCollected);
 
@@ -424,6 +425,7 @@ namespace Ciga.Demo
 
         public void TriggerPhase2()
         {
+            Debug.Log($"[Cutscene] TriggerPhase2 check — Wrapped:{PlayerHasWrapped} Played:{Phase2Played} Playing:{IsPlaying} TutorialDone:{TutorialDone}");
             if (!PlayerHasWrapped || Phase2Played || IsPlaying || !TutorialDone) return;
             Phase2Played = true;
             StartCoroutine(ChapterEndSequence(Chapter1EndBubbles, Phase2Lines, Chapter2Title, 2, phase2BGM));
@@ -585,6 +587,34 @@ namespace Ciga.Demo
         }
 
         // ── Respawn ─────────────────────────────────────────────────────
+
+        private IEnumerator WireUpPlayer()
+        {
+            PlayerController2D player = null;
+            float waited = 0f;
+            while (player == null && waited < 60f)
+            {
+                player = FindFirstObjectByType<PlayerController2D>();
+                if (player == null)
+                {
+                    yield return new WaitForSeconds(0.25f);
+                    waited += 0.25f;
+                }
+            }
+            if (player != null)
+            {
+                player.OnPlayerWrapped += () =>
+                {
+                    PlayerHasWrapped = true;
+                    Debug.Log("[Cutscene] Player wrapped! PlayerHasWrapped=true");
+                };
+                Debug.Log("[Cutscene] Wired up to Player.OnPlayerWrapped");
+            }
+            else
+            {
+                Debug.LogError("[Cutscene] Could not find PlayerController2D after 60s!");
+            }
+        }
 
         private IEnumerator RespawnAtChapter(int chapter)
         {
