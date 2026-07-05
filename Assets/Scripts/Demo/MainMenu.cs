@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
@@ -23,6 +24,14 @@ namespace Ciga.Demo
 
         private void BuildUI()
         {
+            // EventSystem — required for button clicks in builds
+            if (FindFirstObjectByType<EventSystem>() == null)
+            {
+                var esGo = new GameObject("EventSystem");
+                esGo.AddComponent<EventSystem>();
+                esGo.AddComponent<StandaloneInputModule>();
+            }
+
             // Canvas
             var cGo = new GameObject("MenuCanvas");
             cGo.transform.SetParent(transform);
