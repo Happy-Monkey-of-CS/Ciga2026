@@ -40,6 +40,8 @@ namespace Ciga.Demo
         public static CutsceneManager2D Instance { get; private set; }
 
         // State
+        private static bool _openingHasPlayed;
+        private static int _highestChapter = 1; // checkpoint: 1, 2, or 3
         public int CurrentPhase { get; private set; }
         public bool IsPlaying { get; private set; }
         public bool PlayerHasWrapped { get; set; }
@@ -87,6 +89,34 @@ namespace Ciga.Demo
             "准备开始献祭仪式。",
         };
 
+        // Chapter-end monologues (speech bubbles before phase transition)
+        private static readonly string[] Chapter1EndBubbles =
+        {
+            "这艘船……它在循环。",
+            "无论我怎么跑，都会回到原点。",
+            "",
+            "但那些碎片……",
+            "那些在我之前被献祭者的遗物……",
+            "它们散落在船上各处。",
+            "也许收集它们，就能打开某扇门。",
+            "",
+            "我开始明白锚的用法了。",
+            "继续前进吧。",
+        };
+
+        private static readonly string[] Chapter2EndBubbles =
+        {
+            "钥匙……全部集齐了。",
+            "",
+            "我可以离开了？",
+            "我能感觉到……",
+            "锚在震动。",
+            "",
+            "有什么东西在等着我。",
+            "但我已经没有退路了。",
+            "来吧。",
+        };
+
         private const string Chapter1Title = "第一章：逃出生天";
 
         private static readonly string[] TutorialBubbles =
@@ -100,6 +130,9 @@ namespace Ciga.Demo
             "",
             "E键 —— 攻击",
             "空格键 —— 跳跃 / 蹬墙",
+            "",
+            "锚的用法还有很多......",
+            "但现在我只知道这个",
             "",
             "准备好了就开始吧。",
         };
@@ -129,9 +162,9 @@ namespace Ciga.Demo
         private static readonly string[] Phase3Lines =
         {
             "钥匙集齐了。",
-            "门缓缓打开。",
+            "我可以回家了",
             "",
-            "但深渊之中，有什么东西苏醒了。",
+            "但好像有什么东西来了。",
             "深海之神并不满足于这些碎片。",
             "",
             "一个灵魂从黑暗中升起。",
@@ -193,12 +226,31 @@ namespace Ciga.Demo
         private IEnumerator Start()
         {
             yield return null;
+            CurrentPhase = 0;
+            IsPlaying = false;
+            Phase2Played = false;
+            Phase3Played = false;
+            EndingPlayed = false;
+            TutorialDone = false;
+            PlayerHasWrapped = false;
+
             var player = FindFirstObjectByType<PlayerController2D>();
             if (player != null) player.OnPlayerWrapped += () => PlayerHasWrapped = true;
             var collector = CollectionManager2D.Instance;
             if (collector != null) collector.OnAllCollected.AddListener(OnAllKeysCollected);
-            if (CurrentPhase == 0 && !IsPlaying)
+
+            if (!_openingHasPlayed)
+            {
+                // First time ever — full opening cutscene + tutorial
+                _highestChapter = 1;
                 yield return StartCoroutine(OpeningSequence());
+                _openingHasPlayed = true;
+            }
+            else
+            {
+                // Respawn — jump to highest chapter reached
+                yield return StartCoroutine(RespawnAtChapter(_highestChapter));
+            }
         }
 
         private void Update()
@@ -319,18 +371,69 @@ namespace Ciga.Demo
 
         // ── Public API ──────────────────────────────────────────────────
 
+        /// <summary>Show a gameplay bubble tutorial (called by TutorialTrigger2D). Pauses game, shows text, waits for key, resumes.</summary>
+        public IEnumerator ShowGameplayBubble(string[] lines)
+        {
+            IsPlaying = true;
+            blackPanel.color = new Color(0f, 0f, 0f, 0.7f);
+            blackPanel.gameObject.SetActive(true);
+            panelGroup.alpha = 1f;
+            bodyText.text = "";
+            chapterText.text = "";
+            bubbleObj.SetActive(true);
+            bool oldSkip = skipFlag;
+            skipFlag = false;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                if (string.IsNullOrEmpty(line))
+                {
+                    yield return new WaitForSecondsRealtime(0.4f);
+                    continue;
+                }
+
+                bubbleText.text = "";
+                for (int c = 0; c < line.Length; c++)
+                {
+                    if (skipFlag) { bubbleText.text = line; skipFlag = false; break; }
+                    bubbleText.text = line.Substring(0, c + 1);
+                    PlayTick();
+                    yield return new WaitForSecondsRealtime(charDelay);
+                }
+
+                if (i < lines.Length - 1)
+                {
+                    string cur = bubbleText.text;
+                    bubbleText.text = cur + "\n<color=#888888>▼</color>";
+                    yield return new WaitForSecondsRealtime(0.3f);
+                    while (!Input.anyKeyDown) yield return null;
+                    skipFlag = false;
+                }
+            }
+
+            yield return new WaitForSecondsRealtime(0.5f);
+            while (!Input.anyKeyDown) yield return null;
+
+            bubbleText.text = "";
+            bubbleObj.SetActive(false);
+            blackPanel.gameObject.SetActive(false);
+            skipFlag = oldSkip;
+            IsPlaying = false;
+        }
+
         public void TriggerPhase2()
         {
             if (!PlayerHasWrapped || Phase2Played || IsPlaying || !TutorialDone) return;
             Phase2Played = true;
-            StartCoroutine(RunPhaseTransition(Phase2Lines, Chapter2Title, 2, phase2BGM));
+            StartCoroutine(ChapterEndSequence(Chapter1EndBubbles, Phase2Lines, Chapter2Title, 2, phase2BGM));
         }
 
         public void TriggerPhase3()
         {
             if (Phase3Played || IsPlaying) return;
             Phase3Played = true;
-            StartCoroutine(RunPhaseTransition(Phase3Lines, Chapter3Title, 3, phase3BGM));
+            StartCoroutine(ChapterEndSequence(Chapter2EndBubbles, Phase3Lines, Chapter3Title, 3, phase3BGM));
         }
 
         public void TriggerEnding()
@@ -410,6 +513,112 @@ namespace Ciga.Demo
 
             bubbleObj.SetActive(false);
             blackPanel.color = Color.black;
+        }
+
+        // ── Chapter-end monologue → cutscene ────────────────────────────
+
+        private IEnumerator ChapterEndSequence(string[] bubbles, string[] cutsceneLines,
+            string chapterTitle, int phase, AudioClip nextBGM)
+        {
+            IsPlaying = true;
+            SilenceGameplay();
+            DuckBGM(0.08f);
+
+            // Step 1: Show character monologue bubbles
+            yield return StartCoroutine(ShowBubbles(bubbles));
+
+            // Step 2: Full cutscene (black screen + story text + chapter title)
+            yield return StartCoroutine(FadeTo(1f));
+            yield return StartCoroutine(TypeLines(cutsceneLines));
+            bodyText.text = "";
+            yield return new WaitForSecondsRealtime(0.6f);
+            yield return StartCoroutine(ShowChapter(chapterTitle));
+            yield return StartCoroutine(FadeTo(0f));
+            yield return StartCoroutine(CrossfadeBGM(nextBGM));
+
+            _highestChapter = phase;
+            Time.timeScale = 1f;
+            SetPhase(phase);
+            IsPlaying = false;
+        }
+
+        private IEnumerator ShowBubbles(string[] lines)
+        {
+            blackPanel.color = new Color(0f, 0f, 0f, 0.7f);
+            bodyText.text = "";
+            chapterText.text = "";
+            bubbleObj.SetActive(true);
+            skipFlag = false;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                if (string.IsNullOrEmpty(line))
+                {
+                    yield return new WaitForSecondsRealtime(0.4f);
+                    continue;
+                }
+
+                bubbleText.text = "";
+                for (int c = 0; c < line.Length; c++)
+                {
+                    if (skipFlag) { bubbleText.text = line; skipFlag = false; break; }
+                    bubbleText.text = line.Substring(0, c + 1);
+                    PlayTick();
+                    yield return new WaitForSecondsRealtime(charDelay);
+                }
+
+                if (i < lines.Length - 1)
+                {
+                    string cur = bubbleText.text;
+                    bubbleText.text = cur + "\n<color=#888888>▼</color>";
+                    yield return new WaitForSecondsRealtime(0.3f);
+                    while (!Input.anyKeyDown) yield return null;
+                    skipFlag = false;
+                }
+            }
+
+            yield return new WaitForSecondsRealtime(0.5f);
+            bubbleText.text = "";
+            bubbleObj.SetActive(false);
+            blackPanel.color = Color.black;
+        }
+
+        // ── Respawn ─────────────────────────────────────────────────────
+
+        private IEnumerator RespawnAtChapter(int chapter)
+        {
+            TutorialDone = true;
+            Time.timeScale = 1f;
+
+            if (chapter >= 3)
+            {
+                // Chapter 3: boss fight — spawn boss directly, no keys needed
+                PlayerHasWrapped = true;
+                Phase2Played = true;
+                Phase3Played = true;
+                PlayBGM(phase3BGM);
+                SetPhase(3);
+                yield return new WaitForSeconds(0.3f);
+                var cm = CollectionManager2D.Instance;
+                if (cm != null) cm.ForceSpawnBoss();
+            }
+            else if (chapter >= 2)
+            {
+                // Chapter 2: skip discovery, go straight to key collection
+                PlayerHasWrapped = true;
+                Phase2Played = true;
+                PlayBGM(phase2BGM);
+                SetPhase(2);
+            }
+            else
+            {
+                // Chapter 1: skip tutorial, start fresh Phase 1
+                PlayBGM(phase1BGM);
+                SetPhase(1);
+            }
+
+            yield return null;
         }
 
         // ── Phase transitions ───────────────────────────────────────────

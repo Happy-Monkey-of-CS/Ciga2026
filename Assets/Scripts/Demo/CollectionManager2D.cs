@@ -63,6 +63,15 @@ namespace Ciga.Demo
             if (instance == this) instance = null;
         }
 
+        /// <summary>Force-spawn the boss immediately, skipping key collection. Used for Chapter 3 respawn.</summary>
+        public void ForceSpawnBoss()
+        {
+            if (bossSpawned) return;
+            bossSpawned = true;
+            collectedCount = totalNeeded;
+            SpawnBoss();
+        }
+
         /// <summary>Called by Collectible2D when the player picks one up.</summary>
         public void OnCollected(Vector3 position)
         {
